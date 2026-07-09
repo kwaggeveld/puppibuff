@@ -1,0 +1,9 @@
+[project]
+name = "puppibuff"
+version = "0.0.0"
+
+[tool.setuptools]
+packages = ["puppibuff", "puppibuff.datasets", "puppibuff.codecs"]
+
+[tool.setuptools.package-dir]
+puppibuff = "."
