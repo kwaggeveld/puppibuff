@@ -7,18 +7,20 @@ from numpy.typing import NDArray
 
 
 class Codec(ABC):
-    s_DATASET_TYPE: type[Dataset]
+    s_REQUIRED_CHANNELS: list[str]
     s_KEYS: list[str]
 
-# --- Shared guard ---
-
     def check_dataset(self, data: Dataset) -> None:
-        if not isinstance(data, self.s_DATASET_TYPE):
-            raise TypeError(
-                f"expected {self.s_DATASET_TYPE.__name__}, got {type(data).__name__}"
-            )
+        if not isinstance(data, Dataset):
+            raise TypeError(f"expected a Dataset, got {type(data).__name__}")
 
-# --- Contract ---
+        missing = [c for c in self.s_REQUIRED_CHANNELS if c not in data.channels()]
+        if missing:
+            raise ValueError(
+                f"{type(data).__name__} is missing required channels: {missing}"
+            )
+       
+# --- Main functionality --- 
 
     @abstractmethod
     def fit(self, data: Dataset) -> None:

@@ -1,5 +1,5 @@
 from .codec import Codec
-from ..datasets import Dataset, PuppiJetM16
+from ..datasets import Dataset
 
 import numpy as np
 
@@ -17,7 +17,7 @@ class FixedMCodec(Codec):
         [pt, eta, sin_phi, cos_phi]
     """
     
-    s_DATASET_TYPE = PuppiJetM16
+    s_REQUIRED_CHANNELS = ["pt", "eta", "phi"]
     s_KEYS = ["pt_mean", "pt_std", "eta_mean", "eta_std"]
 
     def fit(self, data: Dataset) -> None:
