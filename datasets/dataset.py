@@ -16,9 +16,10 @@ class Dataset(ABC):
 # --- Loading data ---
     
     def _load(self, dir: str) -> dict[str, NDArray]:
-        event_dict = { channel: [] for channel in self.s_CHANNELS }
+        event_dict: dict[str, list[NDArray]] = { channel: [] for channel in self.s_CHANNELS }
 
-        for file in tqdm(sorted(Path(dir).iterdir()), desc = "Loading files"):
+        files = sorted(Path(dir).glob("*.npy"))
+        for file in tqdm(files, desc = "Loading files"):
             data = np.load(file, allow_pickle = True).item()
 
             selected = self._select(data)    # Derived datasets implement this

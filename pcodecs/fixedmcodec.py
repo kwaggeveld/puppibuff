@@ -42,7 +42,7 @@ class FixedMCodec(Codec):
         self.eta_min = float(np.nanmin(eta))
         self.eta_max = float(np.nanmax(eta))
 
-    def encode(self, data: NDarray) -> NDArray:
+    def encode(self, data: Dataset) -> NDArray:
         self.check_dataset(data)
 
         std_pt  = (np.log1p(data["pt"]) - self.pt_mean) / self.pt_std
