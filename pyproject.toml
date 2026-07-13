@@ -1,9 +1,25 @@
 [project]
 name = "puppibuff"
 version = "0.0.0"
+dependencies = [
+    "numpy",
+    "matplotlib",
+    "xgboost",
+    "joblib",
+    "tqdm",
+    "tqdm-joblib",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
 
 [tool.setuptools]
-packages = ["puppibuff", "puppibuff.datasets", "puppibuff.codecs"]
+packages = ["puppibuff", "puppibuff.datasets", "puppibuff.codecs", "puppibuff.validation"]
 
 [tool.setuptools.package-dir]
 puppibuff = "."
+
+[tool.mypy]
+disable_error_code = ["import-untyped"]

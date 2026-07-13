@@ -1,7 +1,7 @@
 from .solvers import midpoint_solve
 
 from xgboost import XGBRegressor, XGBModel
-from joblib import Parallel, delayed    # type: ignore[import-untyped]
+from joblib import delayed
 import numpy as np
 
 from numpy.typing import NDArray
@@ -45,4 +45,4 @@ class FlowBDT():
 
     def sample(self, n_samples: int) -> NDArray:
         x0 = np.random.normal(size = (n_samples, self.n_channels)).astype(np.float32)
-        return midpoint_solve(self.predict, x0, self.n_steps)                 # type: ignore[reportArgumentType]
+        return midpoint_solve(self.predict, x0, self.n_steps)
