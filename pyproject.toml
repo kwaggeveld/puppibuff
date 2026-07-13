@@ -16,10 +16,13 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["puppibuff", "puppibuff.datasets", "puppibuff.codecs", "puppibuff.validation"]
-
-[tool.setuptools.package-dir]
-puppibuff = "."
+package-dir = {"" = "src"}
+packages = [
+    "puppibuff", 
+    "puppibuff.datasets", 
+    "puppibuff.codecs", 
+    "puppibuff.validation"
+]
 
 [tool.mypy]
 disable_error_code = ["import-untyped"]
