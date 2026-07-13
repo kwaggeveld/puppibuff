@@ -12,16 +12,36 @@ class FixedMCodec(Codec):
     pt  -> log1p -> normalise (over all jets)
     eta -> normalise          (over all jets)
     phi -> (sin_phi, cos_phi)
-
-    ``encode`` stacks the 4 channels on axis 1, so an input of N events with
-    multiplicity M maps to shape (N, 4, M) (or (N, 4) for flattened jets).
-    ``decode`` reads the same layout back, indexing the channels on axis 1.
     """
 
-    s_REQUIRED_CHANNELS = [ "pt", "eta", "phi" ]
-    s_KEYS = [ channel + "_" + attr
-               for channel in ( "pt", "eta" )
-               for attr    in ( "mean", "std", "min", "max" )]
+    s_EXPORT_KEYS = [ channel + "_" + attr
+                      for channel in ( "pt", "eta" )
+                      for attr    in ( "mean", "std", "min", "max" )]
+    
+    def check_dataset(self, data: Dataset) -> None:
+        super().check_dataset(data)     # Asserts type
+
+        ref_shape= None                
+        for channel in data.channels(): # Check each channel's shape: should be
+            arr = data[channel]         #   (N, M) = (num_events, multiplicity)
+                                        # for each channel.
+            if arr.dtype == object:
+                raise ValueError(
+                    f"Channel {channel!r} is ragged. "
+                    f"FixedMCodec requires fixed jet multiplicity."
+                )
+            if arr.ndim not in (1, 2):
+                raise ValueError(
+                    f"channel {channel!r} must be flattened 1D (N,) "
+                    f"or 2D (N, M), got shape {arr.shape}"
+                )
+            if ref_shape is None:
+                ref_shape = arr.shape
+            elif arr.shape != ref_shape:
+                raise ValueError(
+                    f"Channel {channel!r} has shape {arr.shape}, "
+                    f"expected {ref_shape} to match other channels"
+                )
 
     def fit(self, data: Dataset) -> None:
         self.check_dataset(data)
@@ -35,9 +55,8 @@ class FixedMCodec(Codec):
         self.pt_std   = float(logpt.std())
         self.eta_mean = float(eta.mean())
         self.eta_std  = float(eta.std())
-
-        # Observed physical ranges to clip samples to
-        self.pt_min  = float(np.nanmin(pt))
+                                                # Observed physical ranges 
+        self.pt_min  = float(np.nanmin(pt))     # to clip samples to
         self.pt_max  = float(np.nanmax(pt))
         self.eta_min = float(np.nanmin(eta))
         self.eta_max = float(np.nanmax(eta))
@@ -50,7 +69,7 @@ class FixedMCodec(Codec):
         sin_phi = np.sin(data["phi"])
         cos_phi = np.cos(data["phi"])
 
-        # from 4 x (N, M) to (N, 4, M)
+                                        # from 4 x (N, M) to (N, 4, M)
         return np.stack([std_pt, std_eta, sin_phi, cos_phi], axis = 1)
 
     def decode(self, out: NDArray) -> dict[str, NDArray]:

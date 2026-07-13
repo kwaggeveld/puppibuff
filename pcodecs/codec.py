@@ -7,19 +7,12 @@ from numpy.typing import NDArray
 
 
 class Codec(ABC):
-    s_REQUIRED_CHANNELS: list[str]
-    s_KEYS: list[str]
+    s_EXPORT_KEYS: list[str]
 
     def check_dataset(self, data: Dataset) -> None:
         if not isinstance(data, Dataset):
             raise TypeError(f"expected a Dataset, got {type(data).__name__}")
 
-        missing = [c for c in self.s_REQUIRED_CHANNELS if c not in data.channels()]
-        if missing:
-            raise ValueError(
-                f"{type(data).__name__} is missing required channels: {missing}"
-            )
-       
 # --- Main functionality --- 
 
     @abstractmethod
@@ -38,7 +31,7 @@ class Codec(ABC):
 
     def to_json(self, path: str) -> None:
         with open(path, "w") as file:
-            json.dump({key: getattr(self, key) for key in self.s_KEYS}, file)
+            json.dump({key: getattr(self, key) for key in self.s_EXPORT_KEYS}, file)
 
     @classmethod
     def from_json(cls, path: str) -> Codec:
