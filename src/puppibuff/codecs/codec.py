@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from ..datasets import Dataset
 
 from abc import ABC, abstractmethod

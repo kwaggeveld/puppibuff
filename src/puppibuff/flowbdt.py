@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from .solvers import midpoint_solve
 
 from xgboost import XGBRegressor, XGBModel
