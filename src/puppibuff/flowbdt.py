@@ -9,7 +9,6 @@ from numpy.typing import NDArray
 from tqdm_joblib import ParallelPbar
 
 
-
 class FlowBDT():
     def __init__(self, config: dict | None = None) -> None:
         self.config = dict(config or {})
@@ -18,12 +17,13 @@ class FlowBDT():
         return XGBRegressor(**self.config).fit(x, y)
 
     def fit(self, xt: NDArray, yt: NDArray, n_jobs: int = 1) -> None:
-        # xt, yt have shape `(n_steps, N, n_channels)`
+        # xt has shape `(n_steps, N, n_channels)`; yt is the velocity target,
+        # constant along each path and so shared by every step: `(N, n_channels)`
 
         self.n_steps, _, self.n_channels = xt.shape
 
         jobs = (                        # One BDT per (step, channel)
-            delayed(self._fit_one)(xt[step], yt[step][:, channel])
+            delayed(self._fit_one)(xt[step], yt[:, channel])
             for step    in range(self.n_steps)
             for channel in range(self.n_channels)
         )
