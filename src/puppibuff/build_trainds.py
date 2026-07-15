@@ -3,19 +3,24 @@ import numpy as np
 from numpy.typing import NDArray
 
 EPSILON = 1e-3
-                                        # x0.shape = x1.shape = (N, chs)
-def build_paths(x0: NDArray, x1: NDArray, n_steps: int) -> NDArray:
-    t = np.linspace(EPSILON, 1, num = n_steps,
-                    dtype = np.float32).reshape(-1, 1, 1)          # (n_t, 1, 1)
 
-    return t * x1 + (1. - t) * x0                            # (n_t, N, ch)
-    # element [i, j, k] = t[i, 0, 0] * x1[j, k] through broadcasting
+class Paths:
+    """Array-like of shape (n_steps, N, n_channels) for lazy
+    computation of each step xt on the path between x0 and x1"""
 
-def build_trainds(x1: NDArray, n_steps: int) -> tuple[NDArray, NDArray]:
+    def __init__(self, x0: NDArray, x1: NDArray, ts: NDArray) -> None:
+        self.x0 = x0                    # (N, n_channels)
+        self.x1 = x1                    # (N, n_channels)
+        self.ts = ts                    # (n_steps)
+        self.n_steps = len(ts)
+
+    def __getitem__(self, step: int) -> NDArray:
+        t = self.ts[step]
+        return t * self.x1 + (1. - t) * self.x0
+
+def build_trainds(x1: NDArray, n_steps: int) -> tuple[Paths, NDArray]:
     x0 = np.random.normal(size = x1.shape).astype(np.float32)
+    
+    ts = np.linspace(EPSILON, 1, num = n_steps, dtype = np.float32)
 
-    xt = build_paths(x0, x1, n_steps)   # Paths from noise to data (n_t, N, ch)
-
-    vt = x1 - x0                        # Constant velocity along the paths, so
-                                        # the target is shared by every step
-    return xt, vt                       # (n_t, N, ch), (N, ch)
+    return Paths(x0, x1, ts), x1 - x0

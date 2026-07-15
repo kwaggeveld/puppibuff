@@ -1,14 +1,15 @@
 from __future__ import annotations
 
+from .build_trainds import Paths
 from .solvers import midpoint_solve
 
+import numpy as np
 from xgboost import XGBRegressor, XGBModel
 from joblib import delayed, dump, load
-import numpy as np
+from tqdm_joblib import ParallelPbar
 
 from numpy.typing import NDArray
 
-from tqdm_joblib import ParallelPbar
 
 
 class FlowBDT():
@@ -18,15 +19,15 @@ class FlowBDT():
     def _fit_one(self, x: NDArray, y: NDArray) -> XGBModel:
         return XGBRegressor(**self.config).fit(x, y)
 
-    def fit(self, xt: NDArray, yt: NDArray, n_threads: int = 1) -> None:
-        # xt has shape `(n_steps, N, n_channels)`; yt is the velocity target,
-        # constant along each path and so shared by every step: `(N, n_channels)`
+    def fit(self, x: Paths, y: NDArray, n_threads: int = 1) -> None:
+        # X: sequence of n_steps arrays, each (N, n_channels); y: (N, n_channels)
+        self.n_steps    = x.n_steps
+        self.n_channels = y.shape[1]
 
-        self.n_steps, _, self.n_channels = xt.shape
-
-        jobs = (                        # One BDT per (step, channel)
-            delayed(self._fit_one)(xt[step], yt[:, channel])
+        jobs = (
+            delayed(self._fit_one)(x_step, y[:, channel])
             for step    in range(self.n_steps)
+            for x_step  in [x[step]]    # Move computation outside channel loop
             for channel in range(self.n_channels)
         )
 
