@@ -34,11 +34,12 @@ class FlowBDT():
         self.bdt_grid = np.array(ensemble, dtype = object)
         self.bdt_grid = self.bdt_grid.reshape(self.n_steps, self.n_channels)
 
+        print("Training done")
+
     def predict(self, t: float, xt: NDArray) -> NDArray:
         # xt has shape (N, n_channels)
-                                        # Clip t * (n_steps - 1) to
-                                        # [0, n_steps - 1]
-        step = max(0, min(round(t * (self.n_steps - 1)), self.n_steps - 1))
+                                        # Convert t in [0, 1] to step
+        step = int(np.floor(t * (self.n_steps - 1) + 0.5 + 1e-6)) 
 
         ret = np.empty_like(xt)         # Call approp. BDT for each channel
         for channel in range(self.n_channels):
