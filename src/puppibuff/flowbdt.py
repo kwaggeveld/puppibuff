@@ -3,7 +3,7 @@ from __future__ import annotations
 from .solvers import midpoint_solve
 
 from xgboost import XGBRegressor, XGBModel
-from joblib import delayed
+from joblib import delayed, dump, load
 import numpy as np
 
 from numpy.typing import NDArray
@@ -49,3 +49,15 @@ class FlowBDT():
     def sample(self, n_samples: int) -> NDArray:
         x0 = np.random.normal(size = (n_samples, self.n_channels)).astype(np.float32)
         return midpoint_solve(self.predict, x0, self.n_steps)
+
+# --- Export/import ---
+
+    def to_disk(self, path: str) -> None:
+        dump(self.__dict__, path)
+
+    @classmethod
+    def from_disk(cls, path: str) -> FlowBDT:
+        obj = cls()
+        obj.__dict__.update(load(path))
+
+        return obj
