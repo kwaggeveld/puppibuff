@@ -33,6 +33,8 @@ def plot_distributions(
         ax.set_ylabel("Probability density")
         ax.legend()
 
+    axes[0].set_yscale("log")           # pt to log 
+
     fig.tight_layout()
 
     return fig

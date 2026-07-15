@@ -18,7 +18,7 @@ class FlowBDT():
     def _fit_one(self, x: NDArray, y: NDArray) -> XGBModel:
         return XGBRegressor(**self.config).fit(x, y)
 
-    def fit(self, xt: NDArray, yt: NDArray, n_jobs: int = 1) -> None:
+    def fit(self, xt: NDArray, yt: NDArray, n_threads: int = 1) -> None:
         # xt has shape `(n_steps, N, n_channels)`; yt is the velocity target,
         # constant along each path and so shared by every step: `(N, n_channels)`
 
@@ -30,7 +30,7 @@ class FlowBDT():
             for channel in range(self.n_channels)
         )
 
-        ensemble = ParallelPbar("Training BDT grid")(n_jobs = n_jobs)(jobs)
+        ensemble = ParallelPbar("Training BDT grid")(n_jobs = n_threads)(jobs)
         self.bdt_grid = np.array(ensemble, dtype = object)
         self.bdt_grid = self.bdt_grid.reshape(self.n_steps, self.n_channels)
 
@@ -38,7 +38,7 @@ class FlowBDT():
 
     def predict(self, t: float, xt: NDArray) -> NDArray:
         # xt has shape (N, n_channels)
-                                        # Convert t in [0, 1] to step
+                                        # Convert t in [0, 1] to integer step
         step = int(np.floor(t * (self.n_steps - 1) + 0.5 + 1e-6)) 
 
         ret = np.empty_like(xt)         # Call approp. BDT for each channel
