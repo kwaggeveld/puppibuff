@@ -5,8 +5,8 @@ from .solvers import midpoint_solve
 
 import numpy as np
 from xgboost import XGBRegressor, XGBModel
-from joblib import delayed, dump, load
-from tqdm_joblib import ParallelPbar
+from joblib import Parallel, delayed, dump, load
+from tqdm import tqdm
 
 from numpy.typing import NDArray
 
@@ -24,14 +24,23 @@ class FlowBDT():
         self.n_steps    = x.n_steps
         self.n_channels = y.shape[1]
 
-        jobs = (
-            delayed(self._fit_one)(x_step, y[:, channel])
-            for step    in range(self.n_steps)
-            for x_step  in [x[step]]    # Move computation outside channel loop
-            for channel in range(self.n_channels)
-        )
+        ensemble = []
+        with tqdm(total = self.n_steps * self.n_channels,
+                  desc  = "Training BDT grid") as progress_bar:
 
-        ensemble = ParallelPbar("Training BDT grid")(n_jobs = n_threads)(jobs)
+            for step in range(self.n_steps):
+                xt = x[step]            # Shared by every channel of this step
+
+                jobs = (
+                    delayed(self._fit_one)(xt, y[:, channel])
+                    for channel in range(self.n_channels)
+                )
+                ensemble.extend(Parallel(n_jobs = n_threads)(jobs))
+                
+                progress_bar.update(self.n_channels)
+
+                del xt
+
         self.bdt_grid = np.array(ensemble, dtype = object)
         self.bdt_grid = self.bdt_grid.reshape(self.n_steps, self.n_channels)
 

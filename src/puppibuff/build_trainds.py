@@ -19,8 +19,9 @@ class Paths:
         return t * self.x1 + (1. - t) * self.x0
 
 def build_trainds(x1: NDArray, n_steps: int) -> tuple[Paths, NDArray]:
-    x0 = np.random.normal(size = x1.shape).astype(np.float32)
-    
+                                        # Drawn as float32 directly
+    x0 = np.random.default_rng().standard_normal(x1.shape, dtype = np.float32)
+
     ts = np.linspace(EPSILON, 1, num = n_steps, dtype = np.float32)
 
     return Paths(x0, x1, ts), x1 - x0
