@@ -4,6 +4,7 @@ version = "0.0.0"
 dependencies = [
     "numpy",
     "matplotlib",
+    "scipy",
     "xgboost",
     "joblib",
     "tqdm",
@@ -20,9 +21,9 @@ package-dir = {"" = "src"}
 packages = [
     "puppibuff", 
     "puppibuff.datasets", 
-    "puppibuff.codecs", 
-    "puppibuff.validation"
+    "puppibuff.codecs",
+    "puppibuff.analyses"
 ]
 
 [tool.mypy]
-disable_error_code = ["import-untyped"]
+disable_error_code = ["import-untyped", "import-not-found"]
