@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from numpy.typing import NDArray
 from matplotlib.figure import Figure
 
+#-----------------------------------------------------------------------------
 
 def plot_distributions(
     data: Dataset,

@@ -8,6 +8,8 @@ from tqdm import tqdm
 
 from numpy.typing import NDArray
 
+#-----------------------------------------------------------------------------
+
 class Dataset(ABC):
     s_CHANNELS: list[str]
     s_CHANNEL_KEYS: dict[str, str]      # maps channel -> raw key

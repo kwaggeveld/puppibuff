@@ -2,6 +2,8 @@ from typing import Callable
 
 from numpy.typing import NDArray
 
+#-----------------------------------------------------------------------------
+
 # Velocity field: f(t, x) = dx/dt, same shape as x.
 Field = Callable[[float, NDArray], NDArray]
 

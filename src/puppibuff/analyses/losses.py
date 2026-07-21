@@ -6,7 +6,7 @@ import numpy as np
 
 from numpy.typing import NDArray
 
-
+#-----------------------------------------------------------------------------
 
 def channel_mse(real: NDArray, gen: NDArray, bins: int = 100) -> float:
                                         # MSE between the two density

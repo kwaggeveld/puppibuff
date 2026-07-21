@@ -6,6 +6,8 @@ import numpy as np
 
 from numpy.typing import NDArray
 
+#-----------------------------------------------------------------------------
+
 class PuppiJetM16(Dataset):
     s_CHANNELS = [ "pt", "eta", "phi" ]
     s_CHANNEL_KEYS = { channel: "PuppiJet_" + channel for channel in s_CHANNELS }

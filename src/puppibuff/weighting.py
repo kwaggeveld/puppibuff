@@ -4,7 +4,7 @@ import numpy as np
 
 from numpy.typing import NDArray
 
-
+#-----------------------------------------------------------------------------
 
 def pt_power_weights(
     pt: NDArray,

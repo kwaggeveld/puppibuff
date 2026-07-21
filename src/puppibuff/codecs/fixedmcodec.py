@@ -5,6 +5,7 @@ import numpy as np
 
 from numpy.typing import NDArray
 
+#-----------------------------------------------------------------------------
 
 class FixedMCodec(Codec):
     """Per-channel normaliser for fixed multiplicity M PuppiJet events.

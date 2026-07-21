@@ -7,6 +7,7 @@ import json
 
 from numpy.typing import NDArray
 
+#-----------------------------------------------------------------------------
 
 class Codec(ABC):
     s_EXPORT_KEYS: list[str]

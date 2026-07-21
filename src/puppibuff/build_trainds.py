@@ -2,6 +2,8 @@ import numpy as np
 
 from numpy.typing import NDArray
 
+#-----------------------------------------------------------------------------
+
 EPSILON = 1e-3
 
 class Paths:

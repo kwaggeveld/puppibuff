@@ -13,6 +13,7 @@ from tqdm import tqdm
 from numpy.typing import NDArray
 from matplotlib.figure import Figure
 
+#-----------------------------------------------------------------------------
 
 def count_nodes(model: FlowBDT) -> int:
     """Total number of nodes across every (step, channel) BDT in the grid."""
