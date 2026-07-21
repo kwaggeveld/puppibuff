@@ -1,53 +1,23 @@
-from puppibuff.datasets import FlatPuppiJet as Dataset
-from puppibuff.codecs import FixedMCodec
 from puppibuff.analyses import plot_distributions
+from puppibuff.configs import FlatPuppiJetConfig
 
-from puppibuff import build_trainds, FlowBDT, pt_power_weights
-
-from os import environ
-
+from puppibuff import setup_from_config, pt_power_weights
 
 
-N_STEPS = 15                            # Will come from config later
-N_EVENTS = 500_000
-N_SAMPLE_EVENTS = 500_000
-                                        # Config copied from BUFF .ipynb
-tree_config = {
-    "n_estimators": 50,                 # Number of gradient boosted trees
-    "max_depth": 6,                     # Max tree depth (for "base learners"?)
-    "objective": "reg:squarederror",
-    "learning_rate": .1,
-    "n_jobs": 16,                        # Number of parallel threads used
-    "subsample": 1.,                    # Fraction of events sampled before growing 
-    "reg_alpha": .2,                    # L1 regularisation term on weights
-    "reg_lambda": .1,                   # L2 regularisation term on weights
-    "seed": 666,
-    "tree_method": "hist",
-    "device": "cpu",
-}
 
 def main():
-    data = Dataset(environ['PUPPIJET_LOCATION'])
+    config = FlatPuppiJetConfig()
 
-    codec = FixedMCodec()
-    codec.fit(data)
-    # codec.to_json("out.json")
+    data, codec, model, x, y = setup_from_config(config)
 
-    x1 = codec.encode(data)[:N_EVENTS]
-
-    x, y = build_trainds(x1, N_STEPS)
-
-    model = FlowBDT(tree_config)
-
-    weights = pt_power_weights(data['pt'][:N_EVENTS], alpha = 0.3)
+    weights = pt_power_weights(data['pt'][:config.n_events], alpha = 0.3)
     model.fit(x, y, sample_weights = weights)
 
-    raw_samples = model.sample(N_SAMPLE_EVENTS)
+    raw_samples = model.sample(config.n_sample_events)
 
     samples = codec.decode(raw_samples)
 
-    # plot_distributions(data, samples).savefig(f"s{N_STEPS}_n{tree_config['n_estimators']}_d{tree_config['max_depth']}.pdf", format = "pdf")
-    figure = plot_distributions(data, samples, n_events = N_EVENTS)
+    figure = plot_distributions(data, samples, n_events = config.n_events)
     figure.show()
     input()
 

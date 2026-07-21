@@ -10,18 +10,14 @@ dependencies = [
     "tqdm",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest",
-]
-
 [tool.setuptools]
 package-dir = {"" = "src"}
 packages = [
-    "puppibuff", 
-    "puppibuff.datasets", 
+    "puppibuff",
+    "puppibuff.datasets",
     "puppibuff.codecs",
-    "puppibuff.analyses"
+    "puppibuff.analyses",
+    "puppibuff.configs"
 ]
 
 [tool.mypy]

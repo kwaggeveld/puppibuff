@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
+from os import environ
 
 import numpy as np
 from tqdm import tqdm
@@ -13,8 +14,10 @@ from numpy.typing import NDArray
 class Dataset(ABC):
     s_CHANNELS: list[str]
     s_CHANNEL_KEYS: dict[str, str]      # maps channel -> raw key
+    s_LOCATION_ENV: str                 # Environ var pointing at this dataset's .npy dir
 
-    def __init__(self, dir: str) -> None:
+    def __init__(self, dir: str | None = None) -> None:
+        dir = dir if dir is not None else environ[self.s_LOCATION_ENV]
         self.d_data = self._load(dir)
 
 # --- Loading data ---
