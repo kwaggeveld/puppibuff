@@ -18,7 +18,7 @@ def main():
         max_depths = MAX_DEPTHS,
         n_estimators = N_ESTIMATORS,
         base_config = config.tree_config,
-        n_sample_events = config.n_sample_events,
+        n_sample_events = 500_000,
         export = "loss_vs_nodes"
     )
 

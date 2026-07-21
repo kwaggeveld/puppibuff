@@ -30,6 +30,5 @@ class Config(ABC):
 
     n_steps:  int = 15
     n_events: int | None = 500_000      # None => train on the entire dataset
-    n_sample_events: int = 500_000
 
     tree_config: dict = field(default_factory = lambda: dict(DEFAULT_TREE_CONFIG))

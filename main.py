@@ -13,7 +13,7 @@ def main():
     weights = pt_power_weights(data['pt'][:config.n_events], alpha = 0.3)
     model.fit(x, y, sample_weights = weights)
 
-    raw_samples = model.sample(config.n_sample_events)
+    raw_samples = model.sample(500_000)
 
     samples = codec.decode(raw_samples)
 
