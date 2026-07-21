@@ -16,10 +16,16 @@ class FlowBDT():
     def __init__(self, config: dict | None = None) -> None:
         self.config = dict(config or {})
 
-    def _fit_one(self, x: NDArray, y: NDArray) -> XGBModel:
-        return XGBRegressor(**self.config).fit(x, y)
+    def _fit_one(self, x: NDArray, y: NDArray, sample_weights: NDArray | None = None) -> XGBModel:
+        return XGBRegressor(**self.config).fit(x, y, sample_weight = sample_weights)
 
-    def fit(self, x: Paths, y: NDArray, n_threads: int = 1) -> None:
+    def fit(
+        self,
+        x: Paths,
+        y: NDArray,
+        sample_weights: NDArray | None = None,
+        n_threads: int = 1,
+    ) -> None:
         # X: sequence of n_steps arrays, each (N, n_channels); y: (N, n_channels)
         self.n_steps    = x.n_steps
         self.n_channels = y.shape[1]
@@ -27,24 +33,21 @@ class FlowBDT():
         ensemble = []
         with tqdm(total = self.n_steps * self.n_channels,
                   desc  = "Training BDT grid") as progress_bar:
-
             for step in range(self.n_steps):
                 xt = x[step]            # Shared by every channel of this step
 
                 jobs = (
-                    delayed(self._fit_one)(xt, y[:, channel])
+                    delayed(self._fit_one)(xt, y[:, channel], sample_weights)
                     for channel in range(self.n_channels)
                 )
                 ensemble.extend(Parallel(n_jobs = n_threads)(jobs))
-                
+
                 progress_bar.update(self.n_channels)
 
                 del xt
 
         self.bdt_grid = np.array(ensemble, dtype = object)
         self.bdt_grid = self.bdt_grid.reshape(self.n_steps, self.n_channels)
-
-        print("Training done")
 
     def predict(self, t: float, xt: NDArray) -> NDArray:
         # xt has shape (N, n_channels)

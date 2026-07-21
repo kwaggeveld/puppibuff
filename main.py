@@ -2,7 +2,7 @@ from puppibuff.datasets import FlatPuppiJet as Dataset
 from puppibuff.codecs import FixedMCodec
 from puppibuff.analyses import plot_distributions
 
-from puppibuff import build_trainds, FlowBDT
+from puppibuff import build_trainds, FlowBDT, pt_power_weights
 
 from os import environ
 
@@ -14,7 +14,7 @@ N_SAMPLE_EVENTS = 500_000
                                         # Config copied from BUFF .ipynb
 tree_config = {
     "n_estimators": 50,                 # Number of gradient boosted trees
-    "max_depth": 2,                     # Max tree depth (for "base learners"?)
+    "max_depth": 6,                     # Max tree depth (for "base learners"?)
     "objective": "reg:squarederror",
     "learning_rate": .1,
     "n_jobs": 16,                        # Number of parallel threads used
@@ -38,13 +38,18 @@ def main():
     x, y = build_trainds(x1, N_STEPS)
 
     model = FlowBDT(tree_config)
-    model.fit(x, y)
+
+    weights = pt_power_weights(data['pt'][:N_EVENTS], alpha = 0.3)
+    model.fit(x, y, sample_weights = weights)
 
     raw_samples = model.sample(N_SAMPLE_EVENTS)
 
     samples = codec.decode(raw_samples)
+
     # plot_distributions(data, samples).savefig(f"s{N_STEPS}_n{tree_config['n_estimators']}_d{tree_config['max_depth']}.pdf", format = "pdf")
-    plot_distributions(data, samples).show()
+    figure = plot_distributions(data, samples, n_events = N_EVENTS)
+    figure.show()
+    input()
 
 
 if __name__ == "__main__":
