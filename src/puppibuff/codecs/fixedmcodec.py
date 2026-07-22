@@ -8,7 +8,7 @@ from numpy.typing import NDArray
 #-----------------------------------------------------------------------------
 
 class FixedMCodec(Codec):
-    """Per-channel normaliser for fixed multiplicity M PuppiJet events.
+    """Per-channel codec for fixed multiplicity M PuppiJet events.
 
     pt  -> log1p -> normalise (over all jets)
     eta -> normalise          (over all jets)
@@ -18,6 +18,7 @@ class FixedMCodec(Codec):
     s_EXPORT_KEYS = [ channel + "_" + attr
                       for channel in ( "pt", "eta" )
                       for attr    in ( "mean", "std", "min", "max" )]
+
     
     def check_dataset(self, data: Dataset) -> None:
         super().check_dataset(data)     # Asserts type
@@ -44,38 +45,56 @@ class FixedMCodec(Codec):
                     f"expected {ref_shape} to match other channels"
                 )
 
+
     def fit(self, data: Dataset) -> None:
         self.check_dataset(data)
+        self._fit_stats(data["pt"], data["eta"])
 
-        pt  = data['pt']
-        eta = data["eta"]
-        
+
+    def encode(self, data: Dataset) -> NDArray:
+        self.check_dataset(data)
+
+        encoded_channels = self._encode_channels(
+            data["pt"], data["eta"], data["phi"]
+        )
+                                        # from 4 x (N, M) to (N, 4, M)
+        return np.stack([*encoded_channels], axis = 1)
+
+
+    def decode(self, out: NDArray) -> dict[str, NDArray]:
+        encoded_channels = np.moveaxis(out, 1, 0)
+        return self._decode_channels(*encoded_channels)
+
+
+    def _fit_stats(self, pt: NDArray, eta: NDArray) -> None:
+        """Set pt/eta mean/std/min/max from (already channel-selected) arrays."""
         logpt = np.log1p(pt)
 
         self.pt_mean  = float(logpt.mean())
         self.pt_std   = float(logpt.std())
         self.eta_mean = float(eta.mean())
         self.eta_std  = float(eta.std())
-                                                # Observed physical ranges 
+                                                # Observed physical ranges
         self.pt_min  = float(np.nanmin(pt))     # to clip samples to
         self.pt_max  = float(np.nanmax(pt))
         self.eta_min = float(np.nanmin(eta))
         self.eta_max = float(np.nanmax(eta))
 
-    def encode(self, data: Dataset) -> NDArray:
-        self.check_dataset(data)
 
-        std_pt  = (np.log1p(data["pt"]) - self.pt_mean) / self.pt_std
-        std_eta = (data["eta"] - self.eta_mean) / self.eta_std
-        sin_phi = np.sin(data["phi"])
-        cos_phi = np.cos(data["phi"])
+    def _encode_channels(
+        self, pt: NDArray, eta: NDArray, phi: NDArray
+    ) -> tuple[NDArray, NDArray, NDArray, NDArray]:
+        std_pt  = (np.log1p(pt) - self.pt_mean) / self.pt_std
+        std_eta = (eta - self.eta_mean) / self.eta_std
+        sin_phi = np.sin(phi)
+        cos_phi = np.cos(phi)
+        
+        return std_pt, std_eta, sin_phi, cos_phi
 
-                                        # from 4 x (N, M) to (N, 4, M)
-        return np.stack([std_pt, std_eta, sin_phi, cos_phi], axis = 1)
 
-    def decode(self, out: NDArray) -> dict[str, NDArray]:
-        std_pt, std_eta, sin_phi, cos_phi = np.moveaxis(out, 1, 0)
-
+    def _decode_channels(
+        self, std_pt: NDArray, std_eta: NDArray, sin_phi: NDArray, cos_phi: NDArray
+    ) -> dict[str, NDArray]:
         pt  = np.expm1(std_pt * self.pt_std + self.pt_mean)
         eta = std_eta * self.eta_std + self.eta_mean
 
