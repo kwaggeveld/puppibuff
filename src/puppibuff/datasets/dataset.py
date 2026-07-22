@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from pathlib import Path
 from os import environ
+from typing import overload
 
 import numpy as np
 from tqdm import tqdm
@@ -46,8 +47,18 @@ class Dataset(ABC):
 
 # --- Accessors ---
 
-    def __getitem__(self, key: str) -> NDArray:
-        return self.d_data[key]
+    @overload
+    def __getitem__(self, key: str) -> NDArray: ...
+    @overload
+    def __getitem__(self, key: slice) -> Dataset: ...
+
+    def __getitem__(self, key: str | slice) -> NDArray | Dataset:
+        if isinstance(key, str):        # string key -> return features
+            return self.d_data[key]
+                                        # slice key -> return sliced Dataset
+        obj = object.__new__(type(self))
+        obj.d_data = { channel: arr[key] for channel, arr in self.d_data.items() }
+        return obj
 
     def channels(self) -> list[str]:
         return list(self.s_CHANNELS)
