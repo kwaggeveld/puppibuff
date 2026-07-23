@@ -1,8 +1,7 @@
-from puppibuff.analyses import plot_distributions
+from puppibuff.analyses.plotting import plot_distributions_flattened
 from puppibuff.configs import FlatPuppiJetConfig
 
 from puppibuff import setup_from_config, pt_power_weights
-
 
 
 def main():
@@ -17,7 +16,7 @@ def main():
 
     samples = codec.decode(raw_samples)
 
-    figure = plot_distributions(data, samples, n_events = config.n_events)
+    figure = plot_distributions_flattened(data, samples, n_events = config.n_events)
     figure.show()
     input()
 

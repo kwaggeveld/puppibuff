@@ -1,4 +1,5 @@
-from puppibuff.analyses import plot_distributions, total_mse, channel_mse
+from puppibuff.analyses import total_mse, channel_mse
+from puppibuff.analyses.plotting import plot_distributions_flattened
 from puppibuff.configs import FlatPuppiJetConfig
 
 from puppibuff import setup_from_config, pt_power_weights
@@ -24,10 +25,10 @@ def main():
     samples = codec.decode(raw_samples)
 
     loss = total_mse(data, samples)
-    pt_loss = channel_mse(data['pt'].ravel(), samples['pt'].ravel())
+    pt_loss = channel_mse(data['pt'], samples['pt'])
     print(f"alpha = {alpha:g}  ->  total_mse = {loss:.6g}  pt_mse = {pt_loss:.6g}")
 
-    figure = plot_distributions(data, samples, n_events = config.n_events)
+    figure = plot_distributions_flattened(data, samples, n_events = config.n_events)
     figure.savefig(f"alpha_gridsearch_alpha{alpha:g}.pdf", format = "pdf")
 
 

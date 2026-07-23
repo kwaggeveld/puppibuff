@@ -41,7 +41,7 @@ class MaskedMCodec(FixedMCodec):
         return jets.reshape(jets.shape[0], -1).astype(np.float32)
 
 
-    def training_weights(self, data: Dataset) -> NDArray:
+    def mask_to_weights(self, data: Dataset) -> NDArray:
         """Construct weights using `real` mask so that BDTs only learn from
         actual particles.
         """

@@ -16,13 +16,15 @@ class FlowBDT():
     def __init__(self, config: dict | None = None) -> None:
         self.config = dict(config or {}) # Need empty dict option for .from_json()
 
+
     def _fit_one(self, x: NDArray, y: NDArray, sample_weights: NDArray | None = None) -> XGBModel:
         return XGBRegressor(**self.config).fit(x, y, sample_weight = sample_weights)
 
 
     @staticmethod
     def _weights_for(sample_weights: NDArray | None, channel: int) -> NDArray | None:
-        """1D weights are shared across channels; 2D gives per-channel columns
+        """Extract weight for specified channel from provided weight array.
+        1D weights are shared across channels; 2D gives per-channel columns
         (e.g. a per-slot `real` mask), so pick this channel's column.
         """
         if sample_weights is None or sample_weights.ndim == 1:

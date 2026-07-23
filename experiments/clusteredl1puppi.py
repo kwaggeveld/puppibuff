@@ -1,4 +1,4 @@
-from puppibuff.analyses import plot_distributions
+from puppibuff.analyses.plotting import plot_distributions_jet
 from puppibuff.configs import ClusteredL1PuppiConfig
 
 from puppibuff import setup_from_config
@@ -11,17 +11,14 @@ def main():
 
     data, codec, model, x, y = setup_from_config(config)
 
-    print(data['pt'].shape)
-
     model.fit(x, y)
 
     raw_samples = model.sample(500_000)
 
     samples = codec.decode(raw_samples)
 
-    figure = plot_distributions(
-        data, samples, channels = ["pt", "eta", "phi"],
-        n_events = config.n_events, mask_padding = True,
+    figure = plot_distributions_jet(
+        data, samples, channels = ["pt", "eta", "phi"], n_events = config.n_events,
     )
 
     figure.show()

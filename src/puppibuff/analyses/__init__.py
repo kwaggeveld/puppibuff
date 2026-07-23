@@ -1,12 +1,13 @@
-from .plot_distributions import plot_distributions
 from .losses import channel_mse, total_mse
 from .node_analysis import count_nodes, loss_vs_nodes, plot_loss_vs_nodes
+from .plotting import plot_distributions_flattened, plot_distributions_jet
 
 __all__ = [
-    "plot_distributions",
     "channel_mse",
     "total_mse",
     "count_nodes",
     "loss_vs_nodes",
     "plot_loss_vs_nodes",
+    "plot_distributions_flattened",
+    "plot_distributions_jet"
 ]
