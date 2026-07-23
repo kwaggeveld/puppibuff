@@ -14,10 +14,21 @@ from numpy.typing import NDArray
 
 class FlowBDT():
     def __init__(self, config: dict | None = None) -> None:
-        self.config = dict(config or {})
+        self.config = dict(config or {}) # Need empty dict option for .from_json()
 
     def _fit_one(self, x: NDArray, y: NDArray, sample_weights: NDArray | None = None) -> XGBModel:
         return XGBRegressor(**self.config).fit(x, y, sample_weight = sample_weights)
+
+
+    @staticmethod
+    def _weights_for(sample_weights: NDArray | None, channel: int) -> NDArray | None:
+        """1D weights are shared across channels; 2D gives per-channel columns
+        (e.g. a per-slot `real` mask), so pick this channel's column.
+        """
+        if sample_weights is None or sample_weights.ndim == 1:
+            return sample_weights
+        return sample_weights[:, channel]
+
 
     def fit(
         self,
@@ -37,9 +48,15 @@ class FlowBDT():
                 xt = x[step]            # Shared by every channel of this step
 
                 jobs = (
-                    delayed(self._fit_one)(xt, y[:, channel], sample_weights)
+                    delayed(self._fit_one)(
+                        xt, y[:, channel], 
+                        self._weights_for(sample_weights, channel)
+                    )
                     for channel in range(self.n_channels)
                 )
+
+                n_threads = max(n_threads, self.n_channels)
+                
                 ensemble.extend(Parallel(n_jobs = n_threads)(jobs))
 
                 progress_bar.update(self.n_channels)
@@ -48,6 +65,7 @@ class FlowBDT():
 
         self.bdt_grid = np.array(ensemble, dtype = object)
         self.bdt_grid = self.bdt_grid.reshape(self.n_steps, self.n_channels)
+
 
     def predict(self, t: float, xt: NDArray) -> NDArray:
         # xt has shape (N, n_channels)
@@ -59,9 +77,11 @@ class FlowBDT():
             ret[:, channel] = self.bdt_grid[step, channel].predict(xt)
         return ret                      # (N, n_channels)
 
+
     def sample(self, n_samples: int) -> NDArray:
         x0 = np.random.normal(size = (n_samples, self.n_channels)).astype(np.float32)
         return midpoint_solve(self.predict, x0, self.n_steps)
+
 
 # --- Export/import ---
 

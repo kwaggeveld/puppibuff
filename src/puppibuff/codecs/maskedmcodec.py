@@ -29,16 +29,29 @@ class MaskedMCodec(FixedMCodec):
     def encode(self, data: Dataset) -> NDArray:
         self.check_dataset(data)
 
-        real = data["real"].astype(np.float32)          # (n_channels, M), 0/1
+        real = data["real"].astype(np.float32)          # (n_events, M), 0/1
         encoded_channels = self._encode_channels(
             data["pt"], data["eta"], data["phi"]
         )
-                                        # (n_events, M, n_channels), 
-                                        # then flatten to 
-                                        # (n_events, M * n_channels)
+                                        # (n_events, M, n_features),
+                                        # then flatten to
+                                        # (n_events, M * n_features)
         jets = np.stack([*encoded_channels, real], axis = -1)
         jets *= real[..., None]         # Mask out fake events
         return jets.reshape(jets.shape[0], -1).astype(np.float32)
+
+
+    def training_weights(self, data: Dataset) -> NDArray:
+        """Construct weights using `real` mask so that BDTs only learn from
+        actual particles.
+        """
+        real = data["real"].astype(np.float32)                 # (n_events, M)
+                                        # (n_events, M, n_features)
+                                        # every kinematic channel weighted by 
+                                        # `real`, `real` itself by 1
+        weights = np.repeat(real[..., None], self.n_features, axis = -1)
+        weights[..., -1] = 1.
+        return weights.reshape(real.shape[0], -1) # (n_events, M * n_features)
 
 
     def decode(self, out: NDArray) -> dict[str, NDArray]:
