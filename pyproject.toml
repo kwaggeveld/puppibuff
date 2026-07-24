@@ -8,6 +8,7 @@ dependencies = [
     "xgboost",
     "joblib",
     "tqdm",
+    "conifer",
 ]
 
 [project.optional-dependencies]
