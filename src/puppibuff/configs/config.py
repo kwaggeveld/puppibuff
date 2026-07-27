@@ -31,6 +31,12 @@ class Config(ABC):
     n_steps:  int = 15
     n_events: int | None = 500_000      # None => train on the entire dataset
 
-    s1phi: bool = True                  # encode phi -> (sin, cos)
+    s1phi: bool = True                  # Encode phi -> (sin, cos)
+
+    multi_output: bool = False          # One multi-output BDT per (step, channel)
 
     tree_config: dict = field(default_factory = lambda: dict(DEFAULT_TREE_CONFIG))
+
+    def __post_init__(self) -> None:
+        if self.multi_output:
+            self.tree_config.setdefault("multi_strategy", "multi_output_tree")
