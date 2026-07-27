@@ -106,7 +106,8 @@ class FixedMCodec(Codec):
         self, std_pt: NDArray, std_eta: NDArray, *phi_channels: NDArray
     ) -> dict[str, NDArray]:
         """Rescale e^pt - 1 and eta back to observed mean, std. Decode phi
-        as arctan2(sin(phi), cos(phi)) if self.s1phi, else rescale back.
+        as arctan2(sin(phi), cos(phi)) if self.s1phi, else rescale back, then
+        wrap to [-pi, pi).
         """
         pt  = np.expm1(std_pt * self.pt_std + self.pt_mean)
         eta = std_eta * self.eta_std + self.eta_mean
@@ -117,8 +118,8 @@ class FixedMCodec(Codec):
         phi = (np.arctan2(*phi_channels) if self.s1phi          # -> (-pi, pi]
                 else phi_channels[0] * self.phi_std + self.phi_mean)
         
-        return {                        # Clip to observed range
+        return {                        # Clip to observed range, 
             "pt":  np.clip(pt,  self.pt_min,  self.pt_max),
             "eta": np.clip(eta, self.eta_min, self.eta_max),
-            "phi": np.clip(phi, self.phi_min, self.phi_max),
-        }
+            "phi": (phi + np.pi) % (2 * np.pi) - np.pi,
+        }                               # wrap phi to [-pi, pi)
