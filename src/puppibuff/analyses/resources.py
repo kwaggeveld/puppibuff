@@ -10,6 +10,11 @@ def resource_estimates(model: FlowBDT) -> dict[str, int]:
     """Use conifer to estimate resource (lut, ff) requirements
     for entire BDT ensamble of `model`
     """
+    if model.multi_output:
+        raise NotImplementedError(
+            "conifer does not support multi_strategy = \"multi_output_tree\" boosters (yet). "
+        )
+
     ret = {
         "lut": 0,
         "ff": 0

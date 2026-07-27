@@ -49,8 +49,11 @@ class FixedMCodec(Codec):
 
     def fit(self, data: Dataset) -> None:
         self.check_dataset(data)
+
         self._fit_stats(data["pt"], data["eta"], data["phi"])
 
+        self.n_features   = len(data.channels()) + self.s1phi   # phi -> (sin, cos) adds one
+        self.multiplicity = data["pt"].shape[1] if data["pt"].ndim == 2 else 1
 
     def encode(self, data: Dataset) -> NDArray:
         self.check_dataset(data)
@@ -65,6 +68,10 @@ class FixedMCodec(Codec):
     def decode(self, out: NDArray) -> dict[str, NDArray]:
         encoded_channels = np.moveaxis(out, 1, 0)
         return self._decode_channels(*encoded_channels)
+
+
+    def group_sizes(self) -> list[int]:
+        return [self.multiplicity] * self.n_features
 
 
     def _fit_stats(self, pt: NDArray, eta: NDArray, phi: NDArray) -> None:

@@ -14,7 +14,7 @@ class MaskedMCodec(FixedMCodec):
     can represent variable multiplicity.
     """
 
-    s_EXPORT_KEYS = FixedMCodec.s_EXPORT_KEYS + [ "n_features" ]
+    s_EXPORT_KEYS = FixedMCodec.s_EXPORT_KEYS + [ "n_features", "multiplicity" ]
 
     def fit(self, data: Dataset) -> None:
         self.check_dataset(data)
@@ -23,7 +23,8 @@ class MaskedMCodec(FixedMCodec):
         self._fit_stats(data["pt"][real], data["eta"][real], data["phi"][real])
 
                                         # phi -> (sin, cos) adds one extra channel
-        self.n_features = len(data.channels()) + self.s1phi
+        self.n_features   = len(data.channels()) + self.s1phi
+        self.multiplicity = data["real"].shape[1]   # Slots per jet
 
 
     def encode(self, data: Dataset) -> NDArray:
@@ -33,34 +34,26 @@ class MaskedMCodec(FixedMCodec):
         encoded_channels = self._encode_channels(
             data["pt"], data["eta"], data["phi"]
         )
-                                        # (n_events, M, n_features),
+                                        # (n_events, n_features, M),
                                         # then flatten to
-                                        # (n_events, M * n_features)
-        jets = np.stack([*encoded_channels, real], axis = -1)
-        jets *= real[..., None]         # Mask out fake events
+                                        # (n_events, n_features * M)
+        jets = np.stack([*encoded_channels, real], axis = 1)
+        jets *= real[:, None, :]        # Mask out fake events
         return jets.reshape(jets.shape[0], -1).astype(np.float32)
 
 
-    def mask_to_weights(self, data: Dataset) -> NDArray:
-        """Construct weights using `real` mask so that BDTs only learn from
-        actual particles.
-        """
-        real = data["real"].astype(np.float32)                 # (n_events, M)
-                                        # (n_events, M, n_features)
-                                        # every kinematic channel weighted by 
-                                        # `real`, `real` itself by 1
-        weights = np.repeat(real[..., None], self.n_features, axis = -1)
-        weights[..., -1] = 1.
-        return weights.reshape(real.shape[0], -1) # (n_events, M * n_features)
-
-
     def decode(self, out: NDArray) -> dict[str, NDArray]:
-                                        # (n_events, M * n_channels)
-                                        # -> (n_events, M, n_channels)
-        jets = out.reshape(out.shape[0], -1, self.n_features)
-        *channels, real = np.moveaxis(jets, -1, 0)
+                                        # (n_events, n_features * M)
+                                        # -> (n_events, n_features, M)
+        jets = out.reshape(out.shape[0], self.n_features, -1)
+        *channels, real = np.moveaxis(jets, 1, 0)
 
         return {
             **self._decode_channels(*channels),
             "real": (real > 0.5).astype(np.float32),
         }
+    
+
+    def group_sizes(self) -> list[int]:
+        """One block of size `M` for each feature"""
+        return [self.multiplicity] * self.n_features

@@ -16,11 +16,15 @@ from matplotlib.figure import Figure
 #-----------------------------------------------------------------------------
 
 def count_nodes(model: FlowBDT) -> int:
-    """Total number of nodes across every (step, channel) BDT in the grid."""
+    """Total number of nodes across every BDT in the grid."""
+    if model.multi_output:
+        raise NotImplementedError(
+            "Node counting needs `trees_to_dataframe`, which XGBoost cannot "
+            "produce for multi_strategy = \"multi_output_tree\" boosters"
+        )
+
     return sum(
-        len(model.bdt_grid[step, channel].get_booster().trees_to_dataframe())
-        for step    in range(model.n_steps)
-        for channel in range(model.n_channels)
+        len(bdt.get_booster().trees_to_dataframe()) for bdt in model.bdt_grid.flat
     )
 
 

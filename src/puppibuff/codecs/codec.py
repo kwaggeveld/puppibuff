@@ -33,6 +33,10 @@ class Codec(ABC):
     def decode(self, out: NDArray) -> dict[str, NDArray]:
         ...
 
+    @abstractmethod
+    def group_sizes(self) -> list[int]:
+        ...
+
 # --- Export/import ---
 
     def to_json(self, path: str) -> None:

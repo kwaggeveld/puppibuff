@@ -21,6 +21,7 @@ def setup_from_config(config: Config) -> tuple[Dataset, Codec, FlowBDT, Paths, N
     x1 = codec.encode(data[:config.n_events])
     x, y = build_trainds(x1, config.n_steps)
 
-    model = FlowBDT(config.tree_config)
+    sizes = codec.group_sizes() if config.multi_output else None
+    model = FlowBDT(config.tree_config, sizes)
 
     return data, codec, model, x, y

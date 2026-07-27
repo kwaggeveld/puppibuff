@@ -13,60 +13,68 @@ from numpy.typing import NDArray
 #-----------------------------------------------------------------------------
 
 class FlowBDT():
-    def __init__(self, config: dict | None = None) -> None:
+    def __init__(
+        self,
+        config: dict | None = None,
+        group_sizes: list[int] | None = None, # Widths of the column blocks
+                                              # each BDT predicts
+    ) -> None:
         self.config = dict(config or {}) # Need empty dict option for .from_json()
+        self.group_sizes = list(group_sizes or []) # Empty => one BDT per channel
+
+
+    @property
+    def multi_output(self) -> bool:
+        return self.config.get("multi_strategy") == "multi_output_tree"
 
 
     def _fit_one(self, x: NDArray, y: NDArray, sample_weights: NDArray | None = None) -> XGBModel:
         return XGBRegressor(**self.config).fit(x, y, sample_weight = sample_weights)
 
 
-    @staticmethod
-    def _weights_for(sample_weights: NDArray | None, channel: int) -> NDArray | None:
-        """Extract weight for specified channel from provided weight array.
-        1D weights are shared across channels; 2D gives per-channel columns
-        (e.g. a per-slot `real` mask), so pick this channel's column.
-        """
-        if sample_weights is None or sample_weights.ndim == 1:
-            return sample_weights
-        return sample_weights[:, channel]
-
-
     def fit(
         self,
         x: Paths,
         y: NDArray,
-        sample_weights: NDArray | None = None,
-        n_threads: int = 1,
+        sample_weights: NDArray | None = None, # (N,), one weight per event
+        n_threads: int | None = None,          # None => one worker per group
     ) -> None:
         # X: sequence of n_steps arrays, each (N, n_channels); y: (N, n_channels)
         self.n_steps    = x.n_steps
         self.n_channels = y.shape[1]
 
+        if not self.group_sizes:
+            self.group_sizes = [1] * self.n_channels
+
+        if sum(self.group_sizes) != self.n_channels:
+            raise ValueError(
+                f"Group sizes {self.group_sizes} sum to {sum(self.group_sizes)}, "
+                f"but y has {self.n_channels} columns"
+            )
+                                        # Construct training blocks
+        targets   = np.split(y, np.cumsum(self.group_sizes)[:-1], axis = 1)
+        n_threads = (len(targets) if n_threads is None
+                     else min(n_threads, len(targets)))
+
         ensemble = []
-        with tqdm(total = self.n_steps * self.n_channels,
+        with tqdm(total = self.n_steps * len(targets),
                   desc  = "Training BDT grid") as progress_bar:
             for step in range(self.n_steps):
-                xt = x[step]            # Shared by every channel of this step
+                xt = x[step]            # Shared by every group of this step
 
                 jobs = (
-                    delayed(self._fit_one)(
-                        xt, y[:, channel], 
-                        self._weights_for(sample_weights, channel)
-                    )
-                    for channel in range(self.n_channels)
+                    delayed(self._fit_one)(xt, target, sample_weights)
+                    for target in targets
                 )
 
-                n_threads = max(n_threads, self.n_channels)
-                
                 ensemble.extend(Parallel(n_jobs = n_threads)(jobs))
 
-                progress_bar.update(self.n_channels)
+                progress_bar.update(len(targets))
 
                 del xt
 
-        self.bdt_grid = np.array(ensemble, dtype = object)
-        self.bdt_grid = self.bdt_grid.reshape(self.n_steps, self.n_channels)
+        self.bdt_grid = (np.array(ensemble, dtype = object)
+                            .reshape(self.n_steps, len(targets)))
 
 
     def predict(self, t: float, xt: NDArray) -> NDArray:
@@ -74,10 +82,8 @@ class FlowBDT():
                                         # Convert t in [0, 1] to integer step
         step = int(np.floor(t * (self.n_steps - 1) + 0.5 + 1e-6)) 
 
-        ret = np.empty_like(xt)         # Call approp. BDT for each channel
-        for channel in range(self.n_channels):
-            ret[:, channel] = self.bdt_grid[step, channel].predict(xt)
-        return ret                      # (N, n_channels)
+                                        # (N, n_channels)
+        return np.column_stack([bdt.predict(xt) for bdt in self.bdt_grid[step]])
 
 
     def sample(self, n_samples: int) -> NDArray:
