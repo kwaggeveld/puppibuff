@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from .config import Config
 from ..datasets import ClusteredL1Puppi
-from ..codecs import PaddedCodec
+from ..codecs import MultiplicityCodec
 
 from dataclasses import dataclass
 
 #-----------------------------------------------------------------------------
 
 @dataclass
-class ClusteredL1PuppiConfig(Config):
+class MultiplicityL1PuppiConfig(Config):
     dataset_cls = ClusteredL1Puppi
-    codec_cls   = PaddedCodec
+    codec_cls   = MultiplicityCodec

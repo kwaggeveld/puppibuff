@@ -7,7 +7,7 @@ from numpy.typing import NDArray
 
 #-----------------------------------------------------------------------------
 
-class MaskedMCodec(FixedMCodec):
+class PaddedCodec(FixedMCodec):
     """Same per-channel normalisation as FixedMCodec, but padded slots (real == 0)
     are excluded from the fitted statistics and zeroed in normalised space. An
     extra `real` existence-flag channel is passed through so a fixed-M model

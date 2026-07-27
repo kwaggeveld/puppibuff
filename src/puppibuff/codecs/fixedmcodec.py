@@ -8,7 +8,7 @@ from numpy.typing import NDArray
 #-----------------------------------------------------------------------------
 
 class FixedMCodec(Codec):
-    """Per-channel codec for fixed multiplicity M PuppiJet events.
+    """Per-channel codec for fixed multiplicity M (pt, eta, phi) events.
 
     pt  -> log1p -> normalise (over all jets)
     eta -> normalise          (over all jets)

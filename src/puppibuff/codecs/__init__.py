@@ -1,9 +1,11 @@
 from .codec import Codec
 from .fixedmcodec import FixedMCodec
-from .maskedmcodec import MaskedMCodec
+from .paddedcodec import PaddedCodec
+from .multiplicitycodec import MultiplicityCodec
 
 __all__ = [
     "Codec",
     "FixedMCodec",
-    "MaskedMCodec",
+    "PaddedCodec",
+    "MultiplicityCodec"
 ]
