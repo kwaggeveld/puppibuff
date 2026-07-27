@@ -12,6 +12,9 @@ from numpy.typing import NDArray
 class Codec(ABC):
     s_EXPORT_KEYS: list[str]
 
+    def __init__(self, s1phi: bool = True) -> None:
+        self.s1phi = s1phi
+
     def check_dataset(self, data: Dataset) -> None:
         if not isinstance(data, Dataset):
             raise TypeError(f"expected a Dataset, got {type(data).__name__}")

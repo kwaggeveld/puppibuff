@@ -31,4 +31,6 @@ class Config(ABC):
     n_steps:  int = 15
     n_events: int | None = 500_000      # None => train on the entire dataset
 
+    s1phi: bool = True                  # encode phi -> (sin, cos)
+
     tree_config: dict = field(default_factory = lambda: dict(DEFAULT_TREE_CONFIG))

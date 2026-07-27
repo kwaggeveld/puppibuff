@@ -12,14 +12,15 @@ class FixedMCodec(Codec):
 
     pt  -> log1p -> normalise (over all jets)
     eta -> normalise          (over all jets)
-    phi -> (sin_phi, cos_phi)
+    phi -> (sin_phi, cos_phi), or plain normalise if `s1phi = False`
     """
 
     s_EXPORT_KEYS = [ channel + "_" + attr
-                      for channel in ( "pt", "eta" )
-                      for attr    in ( "mean", "std", "min", "max" )]
+                      for channel in ( "pt", "eta", "phi" )
+                      for attr    in ( "mean", "std", "min", "max" )] \
+                    + [ "s1phi" ]
 
-    
+
     def check_dataset(self, data: Dataset) -> None:
         super().check_dataset(data)     # Asserts type
 
@@ -48,7 +49,7 @@ class FixedMCodec(Codec):
 
     def fit(self, data: Dataset) -> None:
         self.check_dataset(data)
-        self._fit_stats(data["pt"], data["eta"])
+        self._fit_stats(data["pt"], data["eta"], data["phi"])
 
 
     def encode(self, data: Dataset) -> NDArray:
@@ -66,40 +67,58 @@ class FixedMCodec(Codec):
         return self._decode_channels(*encoded_channels)
 
 
-    def _fit_stats(self, pt: NDArray, eta: NDArray) -> None:
-        """Set pt/eta mean/std/min/max from (already channel-selected) arrays."""
+    def _fit_stats(self, pt: NDArray, eta: NDArray, phi: NDArray) -> None:
+        """Set pt/eta/phi mean/std/min/max from arrays."""
         logpt = np.log1p(pt)
 
         self.pt_mean  = float(logpt.mean())
         self.pt_std   = float(logpt.std())
         self.eta_mean = float(eta.mean())
         self.eta_std  = float(eta.std())
-                                                # Observed physical ranges
-        self.pt_min  = float(np.nanmin(pt))     # to clip samples to
-        self.pt_max  = float(np.nanmax(pt))
+        self.phi_mean = float(phi.mean())       # Unused when self.s1phi == True
+        self.phi_std  = float(phi.std())
+                                                
+        self.pt_min  = float(np.nanmin(pt))     # Observed physical ranges 
+        self.pt_max  = float(np.nanmax(pt))     # to clip samples to
         self.eta_min = float(np.nanmin(eta))
         self.eta_max = float(np.nanmax(eta))
+        self.phi_min = float(np.nanmin(phi))
+        self.phi_max = float(np.nanmax(phi))
 
 
     def _encode_channels(
         self, pt: NDArray, eta: NDArray, phi: NDArray
-    ) -> tuple[NDArray, NDArray, NDArray, NDArray]:
+    ) -> tuple[NDArray, ...]:
+        """Normalise log(1 + pt) and eta. Encode phi as (sin(phi), cos(phi)) 
+        if self.s1phi, else normalise.
+        """
         std_pt  = (np.log1p(pt) - self.pt_mean) / self.pt_std
         std_eta = (eta - self.eta_mean) / self.eta_std
-        sin_phi = np.sin(phi)
-        cos_phi = np.cos(phi)
-        
-        return std_pt, std_eta, sin_phi, cos_phi
+
+        if self.s1phi:
+            return std_pt, std_eta, np.sin(phi), np.cos(phi)
+
+        std_phi = (phi - self.phi_mean) / self.phi_std
+        return std_pt, std_eta, std_phi
 
 
-    def _decode_channels(
-        self, std_pt: NDArray, std_eta: NDArray, sin_phi: NDArray, cos_phi: NDArray
+    def _decode_channels(                      # (sin, cos) or std_phi
+        self, std_pt: NDArray, std_eta: NDArray, *phi_channels: NDArray
     ) -> dict[str, NDArray]:
+        """Rescale e^pt - 1 and eta back to observed mean, std. Decode phi
+        as arctan2(sin(phi), cos(phi)) if self.s1phi, else rescale back.
+        """
         pt  = np.expm1(std_pt * self.pt_std + self.pt_mean)
         eta = std_eta * self.eta_std + self.eta_mean
 
-        return {
-            "pt":  np.clip(pt,  self.pt_min,  self.pt_max),     # to observed range
+                                        # if self.s1phi: 
+                                        #   phi_channels = (sin_phi, cos_phi)
+                                        # else:     phi_channels = (std_phi,)
+        phi = (np.arctan2(*phi_channels) if self.s1phi          # -> (-pi, pi]
+                else phi_channels[0] * self.phi_std + self.phi_mean)
+        
+        return {                        # Clip to observed range
+            "pt":  np.clip(pt,  self.pt_min,  self.pt_max),
             "eta": np.clip(eta, self.eta_min, self.eta_max),
-            "phi": np.arctan2(sin_phi, cos_phi),                # -> (-pi, pi]
+            "phi": np.clip(phi, self.phi_min, self.phi_max),
         }

@@ -15,7 +15,7 @@ def setup_from_config(config: Config) -> tuple[Dataset, Codec, FlowBDT, Paths, N
     training set, and construct the (untrained) model using the config."""
     data = config.dataset_cls()
 
-    codec = config.codec_cls()
+    codec = config.codec_cls(config.s1phi)
     codec.fit(data)
 
     x1 = codec.encode(data[:config.n_events])

@@ -20,10 +20,10 @@ class MaskedMCodec(FixedMCodec):
         self.check_dataset(data)
 
         real = data["real"] == 1        # Exclude padded slots from statistics
-        self._fit_stats(data["pt"][real], data["eta"][real])
+        self._fit_stats(data["pt"][real], data["eta"][real], data["phi"][real])
 
-                                        # phi -> (sin, cos), hence + 1
-        self.n_features = len(data.channels()) + 1
+                                        # phi -> (sin, cos) adds one extra channel
+        self.n_features = len(data.channels()) + self.s1phi
 
 
     def encode(self, data: Dataset) -> NDArray:
@@ -55,12 +55,12 @@ class MaskedMCodec(FixedMCodec):
 
 
     def decode(self, out: NDArray) -> dict[str, NDArray]:
-                                        # (n_events, M * n_channels) 
+                                        # (n_events, M * n_channels)
                                         # -> (n_events, M, n_channels)
         jets = out.reshape(out.shape[0], -1, self.n_features)
-        std_pt, std_eta, sin_phi, cos_phi, real = np.moveaxis(jets, -1, 0)
+        *channels, real = np.moveaxis(jets, -1, 0)
 
         return {
-            **self._decode_channels(std_pt, std_eta, sin_phi, cos_phi),
+            **self._decode_channels(*channels),
             "real": (real > 0.5).astype(np.float32),
         }
