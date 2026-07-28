@@ -32,6 +32,34 @@ class FlowBDT():
         return XGBRegressor(**self.config).fit(x, y, sample_weight = sample_weights)
 
 
+    def _prepare_targets(self, y: NDArray) -> list[NDArray]:
+        """Default group_sizes to one group per channel, validate it against
+        y's column count, then split y into per-group target blocks.
+        """
+        if not self.group_sizes:
+            self.group_sizes = [1] * self.n_channels
+
+        if sum(self.group_sizes) != self.n_channels:
+            raise ValueError(
+                f"Group sizes {self.group_sizes} sum to {sum(self.group_sizes)}, "
+                f"but y has {self.n_channels} columns"
+            )
+
+        return np.split(y, np.cumsum(self.group_sizes)[:-1], axis = 1)
+
+
+    def _fit_step(
+        self, xt: NDArray, targets: list[NDArray],
+        sample_weights: NDArray | None, n_threads: int,
+    ) -> list[XGBModel]:
+        """Fit one BDT per group, all sharing this step's inputs xt."""
+        jobs = (
+            delayed(self._fit_one)(xt, target, sample_weights)
+            for target in targets
+        )
+        return Parallel(n_jobs = n_threads)(jobs)                             # type: ignore
+
+
     def fit(
         self,
         x: Paths,
@@ -43,16 +71,7 @@ class FlowBDT():
         self.n_steps    = x.n_steps
         self.n_channels = y.shape[1]
 
-        if not self.group_sizes:
-            self.group_sizes = [1] * self.n_channels
-
-        if sum(self.group_sizes) != self.n_channels:
-            raise ValueError(
-                f"Group sizes {self.group_sizes} sum to {sum(self.group_sizes)}, "
-                f"but y has {self.n_channels} columns"
-            )
-                                        # Construct training blocks
-        targets   = np.split(y, np.cumsum(self.group_sizes)[:-1], axis = 1)
+        targets   = self._prepare_targets(y)
         n_threads = (len(targets) if n_threads is None
                      else min(n_threads, len(targets)))
 
@@ -62,16 +81,9 @@ class FlowBDT():
             for step in range(self.n_steps):
                 xt = x[step]            # Shared by every group of this step
 
-                jobs = (
-                    delayed(self._fit_one)(xt, target, sample_weights)
-                    for target in targets
-                )
-
-                ensemble.extend(Parallel(n_jobs = n_threads)(jobs))
+                ensemble.extend(self._fit_step(xt, targets, sample_weights, n_threads))
 
                 progress_bar.update(len(targets))
-
-                del xt
 
         self.bdt_grid = (np.array(ensemble, dtype = object)
                             .reshape(self.n_steps, len(targets)))

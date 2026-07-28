@@ -71,6 +71,7 @@ class FixedMCodec(Codec):
 
 
     def group_sizes(self) -> list[int]:
+        """One block of size `M` for each feature"""
         return [self.multiplicity] * self.n_features
 
 

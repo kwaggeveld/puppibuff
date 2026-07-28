@@ -52,8 +52,3 @@ class PaddedCodec(FixedMCodec):
             **self._decode_channels(*channels),
             "real": (real > 0.5).astype(np.float32),
         }
-    
-
-    def group_sizes(self) -> list[int]:
-        """One block of size `M` for each feature"""
-        return [self.multiplicity] * self.n_features
