@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ..flowbdt import FlowBDT
+from ..utils import FlowBDT
 from ..build_trainds import Paths
 from ..datasets import Dataset
 from ..codecs import Codec

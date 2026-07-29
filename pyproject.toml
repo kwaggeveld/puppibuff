@@ -8,7 +8,7 @@ dependencies = [
     "xgboost",
     "joblib",
     "tqdm",
-    "conifer",
+    "conifer >= 1.9",
 ]
 
 [project.optional-dependencies]
@@ -18,15 +18,8 @@ scripts = [
     "awkward",
 ]
 
-[tool.setuptools]
-package-dir = {"" = "src"}
-packages = [
-    "puppibuff",
-    "puppibuff.datasets",
-    "puppibuff.codecs",
-    "puppibuff.analyses",
-    "puppibuff.configs"
-]
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.mypy]
 disable_error_code = ["import-untyped", "import-not-found"]
