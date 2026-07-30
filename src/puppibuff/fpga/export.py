@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ..utils import FlowBDT
+from ..flowbdt import FlowBDT
 
 from pathlib import Path
 

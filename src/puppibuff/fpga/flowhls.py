@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from ..utils import FlowBDT
-from ..solvers import midpoint_solve, t_to_step
+from ..flowbdt import FlowBDT
+from ..utils import midpoint_solve, t_to_step
 from .export import convert_grid
 
 from conifer.utils.performance import performance_estimates
