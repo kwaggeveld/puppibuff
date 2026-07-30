@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from ..flowbdt import FlowBDT
 from ..utils import midpoint_solve, t_to_step
-from .export import convert_grid
+from .convert import convert_grid
+from .load import load_grid
 
 from conifer.utils.performance import performance_estimates
 import numpy as np
@@ -14,14 +15,13 @@ from numpy.typing import NDArray
 
 class FlowHLS:
     """A FlowBDT whose velocity fields are evaluated by conifer HLS models
-    instead of XGBoost. `predict`/`sample` mirror FlowBDT's, so a decoded HLS
-    sample goes straight into the same plots as a decoded Python one.
+    instead of XGBoost. `predict`/`sample` methods mirror FlowBDT's.
     """
 
-    def __init__(self, grid: NDArray, n_channels: int) -> None:
-        self.bdt_grid   = grid          # (n_steps, n_groups) of conifer models
+    def __init__(self, grid: NDArray) -> None:
+        self.bdt_grid   = grid          # (n_steps, n_groups) grid of conifer models
         self.n_steps    = grid.shape[0]
-        self.n_channels = n_channels
+        self.n_channels = grid[0, 0].n_features
 
 
     @classmethod
@@ -31,10 +31,17 @@ class FlowHLS:
         config: dict | None = None,     # None => hls_config()
         output_dir: str = "hls",
     ) -> FlowHLS:
-        return cls(convert_grid(model, config, output_dir), model.n_channels)
+        return cls(convert_grid(model, config, output_dir))
+
+
+    @classmethod
+    def load(cls, output_dir: str = "hls") -> FlowHLS:
+        """Reuse a grid already converted and compiled into `output_dir`."""
+        return cls(load_grid(output_dir))
+
 
     def _call_on_grid(self, method: str, **kwargs) -> list:
-        """Call `method` on every conifer model in `self.grid`."""
+        """Call `method` on every conifer model in `self.bdt_grid`."""
         models_pbar = tqdm(self.bdt_grid.flat, total = self.bdt_grid.size, desc = method)
         return [getattr(model, method)(**kwargs) for model in models_pbar]
 
