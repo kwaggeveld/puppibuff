@@ -67,11 +67,9 @@ class FlowBDT():
                     for target in targets
                 )
 
-                ensemble.extend(Parallel(n_jobs = n_threads)(jobs))
-
-                progress_bar.update(len(targets))
-
-                del xt
+                for model in Parallel(n_jobs = n_threads, return_as = "generator")(jobs):
+                    ensemble.append(model)
+                    progress_bar.update()
 
         self.bdt_grid = (np.array(ensemble, dtype = object)
                             .reshape(self.n_steps, len(targets)))
