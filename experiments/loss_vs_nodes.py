@@ -1,7 +1,8 @@
 from puppibuff.analyses import loss_vs_nodes, plot_loss_vs_nodes
 from puppibuff.configs import FlatPuppiJetConfig
 
-from puppibuff import setup_from_config
+from puppibuff.utils import setup_from_config
+
 
 #-----------------------------------------------------------------------------
 

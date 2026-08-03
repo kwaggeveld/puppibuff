@@ -1,7 +1,8 @@
 from puppibuff.analyses.plotting import plot_distributions_jet
 from puppibuff.configs import MultiplicityL1PuppiConfig
 
-from puppibuff import setup_from_config
+from puppibuff.utils import setup_from_config
+
 
 
 

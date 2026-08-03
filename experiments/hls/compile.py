@@ -1,7 +1,8 @@
 from puppibuff.configs import FlatPuppiJetConfig
 from puppibuff.hls import FlowHLS
 
-from puppibuff import setup_from_config
+from puppibuff.utils import setup_from_config
+
 
 from time import time
 

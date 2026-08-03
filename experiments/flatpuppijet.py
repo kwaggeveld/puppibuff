@@ -1,7 +1,8 @@
 from puppibuff.analyses.plotting import plot_distributions_flattened
 from puppibuff.configs import FlatPuppiJetConfig
 
-from puppibuff import setup_from_config
+from puppibuff.utils import setup_from_config
+
 
 
 
