@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .build_trainds import Paths
-from .solvers import midpoint_solve
+from .utils import midpoint_solve, t_to_step
 
 import numpy as np
 from xgboost import XGBRegressor, XGBModel
@@ -48,18 +48,6 @@ class FlowBDT():
         return np.split(y, np.cumsum(self.group_sizes)[:-1], axis = 1)
 
 
-    def _fit_step(
-        self, xt: NDArray, targets: list[NDArray],
-        sample_weights: NDArray | None, n_threads: int,
-    ) -> list[XGBModel]:
-        """Fit one BDT per group, all sharing this step's inputs xt."""
-        jobs = (
-            delayed(self._fit_one)(xt, target, sample_weights)
-            for target in targets
-        )
-        return Parallel(n_jobs = n_threads)(jobs)                             # type: ignore
-
-
     def fit(
         self,
         x: Paths,
@@ -81,9 +69,14 @@ class FlowBDT():
             for step in range(self.n_steps):
                 xt = x[step]            # Shared by every group of this step
 
-                ensemble.extend(self._fit_step(xt, targets, sample_weights, n_threads))
+                jobs = (
+                    delayed(self._fit_one)(xt, target, sample_weights)
+                    for target in targets
+                )
 
-                progress_bar.update(len(targets))
+                for model in Parallel(n_jobs = n_threads, return_as = "generator")(jobs):
+                    ensemble.append(model)
+                    progress_bar.update()
 
         self.bdt_grid = (np.array(ensemble, dtype = object)
                             .reshape(self.n_steps, len(targets)))
@@ -91,8 +84,7 @@ class FlowBDT():
 
     def predict(self, t: float, xt: NDArray) -> NDArray:
         # xt has shape (N, n_channels)
-                                        # Convert t in [0, 1] to integer step
-        step = int(np.floor(t * (self.n_steps - 1) + 0.5 + 1e-6)) 
+        step = t_to_step(t, self.n_steps)
 
                                         # (N, n_channels)
         return np.column_stack([bdt.predict(xt) for bdt in self.bdt_grid[step]])
