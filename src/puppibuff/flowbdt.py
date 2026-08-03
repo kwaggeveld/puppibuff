@@ -90,8 +90,21 @@ class FlowBDT():
         return np.column_stack([bdt.predict(xt) for bdt in self.bdt_grid[step]])
 
 
-    def sample(self, n_samples: int) -> NDArray:
-        x0 = np.random.normal(size = (n_samples, self.n_channels)).astype(np.float32)
+    def sample(
+            self, 
+            n_samples: int | None = None,
+            x0: NDArray | None = None
+        ) -> NDArray:
+        """Starting from noise, provided or sampled here, integrate the learnt
+        vector field to generate a new event.
+        """
+        
+        if x0 is None:
+            if n_samples is None:
+                raise ValueError("Provide either n_samples or initial noise x0.")
+            
+            x0 = np.random.normal(size = (n_samples, self.n_channels)).astype(np.float32)
+
         return midpoint_solve(self.predict, x0, self.n_steps)
 
 
