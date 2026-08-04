@@ -6,7 +6,7 @@ from . import write
 from .compile import compile_grid, compile_flowhls
 from .convert import convert_grid
 from .load import attach_bridge, import_bridge, load_grid
-from .utils import FLOWHLS_PROJECT, bridge_path
+from .utils import FLOWHLS_PROJECT, bridge_path, merged_build, project_root
 
 from pathlib import Path
 
@@ -28,11 +28,11 @@ class FlowHLS:
     """A FlowBDT whose velocity fields are evaluated by conifer HLS models
     instead of XGBoost. `predict`/`sample` methods mirror FlowBDT's.
 
-    The grid is written as a single project holding every BDT, which is what lets
-    the sampling itself run on the FPGA. `per_bdt = True` writes conifer's own
-    layout instead, one project per BDT.
+    The grid is written as a single `merged` project holding every BDT, which is
+    what lets the sampling itself run on the FPGA. `merged = False` writes conifer's
+    own layout instead, one project per BDT.
     """
-    
+
     accum_precision = "ap_fixed<32,8>"  # The solver's state, wider than score_t
 
     flowhls_top = write.SAMPLE_TOP
@@ -40,13 +40,13 @@ class FlowHLS:
 
 # --- Constructors ---
 
-    def __init__(self, grid: NDArray, output_dir: str = "flowhls") -> None:
+    def __init__(self, grid: NDArray, merged: bool = True) -> None:
         self.bdt_grid   = grid          # (n_steps, n_groups) grid of conifer models
-        self.output_dir = Path(output_dir).resolve()
+        self.output_dir = project_root(grid[0, 0].config.output_dir)
         self.n_steps    = grid.shape[0]
         self.n_channels = grid[0, 0].n_features
 
-        self.per_bdt = False
+        self.merged  = merged
         self._bridge = None
 
 
@@ -56,22 +56,22 @@ class FlowHLS:
         model: FlowBDT,
         config: dict | None = None,     # None => hls_config()
         output_dir: str = "flowhls",
+        merged: bool = True,
     ) -> FlowHLS:
-        return cls(convert_grid(model, config, output_dir), output_dir)
+        return cls(convert_grid(model, config, output_dir), merged)
 
 
     @classmethod
-    def load(cls, work_dir: str = "flowhls", per_bdt: bool = False) -> FlowHLS:
+    def load(cls, work_dir: str = "flowhls") -> FlowHLS:
         """Reuse a grid already converted and compiled into `work_dir`, binding
-        whichever bridge `compile` built there. Reloading is the only way to reuse
-        a merged build, since it compiles at most once per process.
+        whichever bridge `compile` built there.
         """
-        hls = cls(load_grid(work_dir, attach = per_bdt), work_dir)
+        merged = merged_build(work_dir)
 
-        if not per_bdt:
+        hls = cls(load_grid(work_dir, attach = not merged), merged)
+
+        if merged:
             hls.bridge = import_bridge(bridge_path(hls.output_dir, FLOWHLS_PROJECT))
-
-        hls.per_bdt = per_bdt
 
         return hls
 
@@ -93,12 +93,12 @@ class FlowHLS:
 
 # --- Writing ---
 
-    def write(self, per_bdt: bool = False) -> None:
+    def write(self) -> None:
         """Write the grid's HLS project(s): one full design, or one per BDT."""
-        if per_bdt:
-            self._call_on_grid("write")
-        else:
+        if self.merged:
             self._write_flowhls()
+        else:
+            self._call_on_grid("write")
 
 
     def _write_flowhls(self) -> None:
@@ -136,29 +136,26 @@ class FlowHLS:
 
 # --- Compiling and building ---
 
-    def compile(self, n_threads: int | None = None, per_bdt: bool = False) -> None:
+    def compile(self, n_threads: int | None = None) -> None:
         """Compile for emulation. Conifer implements Python bindings for the HLS
         code. The merged design is one compilation unit, so `n_threads` applies
         only to the per-BDT grid (None => all cores).
         """
-        self.write(per_bdt = per_bdt)
+        self.write()
 
-        if per_bdt:
+        if self.merged:
+            compile_flowhls(self.output_dir, FLOWHLS_PROJECT)
+            self.bridge = import_bridge(bridge_path(self.output_dir, FLOWHLS_PROJECT))
+        else:
             compile_grid(self.bdt_grid, n_threads)
 
             for model in self.bdt_grid.flat:    # A bridge only exists in the process
                 attach_bridge(model)            # opened it, so re-attach in parent
 
-        else:
-            compile_flowhls(self.output_dir, FLOWHLS_PROJECT)
-            self.bridge = import_bridge(bridge_path(self.output_dir, FLOWHLS_PROJECT))
 
-        self.per_bdt = per_bdt
-        
-
-    def build(self, per_bdt: bool = True, **kwargs) -> list[bool]:
+    def build(self, **kwargs) -> list[bool]:
         """Run HLS synthesis over the per-BDT projects. Needs vitis_hls on PATH."""
-        if not per_bdt:
+        if self.merged:
             raise NotImplementedError(
                 "Synthesise the merged project with "
                 f"`vitis_hls -f build_hls.tcl` in {self.output_dir}"
@@ -186,13 +183,13 @@ class FlowHLS:
         # xt has shape (N, n_channels)
         step = t_to_step(t, self.n_steps)
 
-        if self.per_bdt:
-            return np.column_stack(     # (N, n_channels)
-                [ model.decision_function(xt) for model in self.bdt_grid[step] ]
-            )
+        if self.merged:
+            return (np.array(self.bridge.field(step, _as_flat_f64(xt)))
+                        .reshape(xt.shape))
 
-        return (np.array(self.bridge.field(step, _as_flat_f64(xt)))
-                    .reshape(xt.shape))
+        return np.column_stack(         # (N, n_channels)
+            [ model.decision_function(xt) for model in self.bdt_grid[step] ]
+        )
 
 
     def sample(
@@ -205,11 +202,11 @@ class FlowHLS:
         """
         x0 = initial_noise(n_samples, self.n_channels, x0)
 
-        if self.per_bdt:
-            return midpoint_solve(self.predict, x0, self.n_steps)
+        if self.merged:
+            return (np.array(self.bridge.sample(_as_flat_f64(x0)))
+                        .reshape(x0.shape))
 
-        return (np.array(self.bridge.sample(_as_flat_f64(x0)))
-                    .reshape(x0.shape))
+        return midpoint_solve(self.predict, x0, self.n_steps)
 
 
 # --- Resources ---

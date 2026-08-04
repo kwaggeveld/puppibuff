@@ -5,7 +5,7 @@ from puppibuff import setup_from_config
 
 import sys
 
-PER_BDT = True
+MERGED = False
 
 def main():                             # Pass directory for the HLS project
     if len(sys.argv) >= 2:              # as argument 1
@@ -22,8 +22,8 @@ def main():                             # Pass directory for the HLS project
     _, _, model, x, y = setup_from_config(config)
 
     model.fit(x, y)
-    hls = FlowHLS.convert(model, output_dir = output_dir)
-    hls.write(per_bdt = PER_BDT)
+    hls = FlowHLS.convert(model, output_dir = output_dir, merged = MERGED)
+    hls.write()
 
 if __name__ == "__main__":
     main()
