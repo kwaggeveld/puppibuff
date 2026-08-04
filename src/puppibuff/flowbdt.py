@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .build_trainds import Paths
-from .utils import midpoint_solve, t_to_step
+from .utils import initial_noise, midpoint_solve, t_to_step
 
 import numpy as np
 from xgboost import XGBRegressor, XGBModel
@@ -98,12 +98,7 @@ class FlowBDT():
         """Starting from noise, provided or sampled here, integrate the learnt
         vector field to generate a new event.
         """
-        
-        if x0 is None:
-            if n_samples is None:
-                raise ValueError("Provide either n_samples or initial noise x0.")
-            
-            x0 = np.random.normal(size = (n_samples, self.n_channels)).astype(np.float32)
+        x0 = initial_noise(n_samples, self.n_channels, x0)
 
         return midpoint_solve(self.predict, x0, self.n_steps)
 

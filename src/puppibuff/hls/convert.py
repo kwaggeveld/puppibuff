@@ -32,7 +32,7 @@ def convert_bdt(bdt: XGBModel, config: dict, output_dir: Path, name: str) -> Mod
 def convert_grid(
     model: FlowBDT,
     config: dict | None = None,
-    output_dir: Path | str = "hls",
+    output_dir: str = "flowhls",
 ) -> NDArray:
     """Convert every BDT of `model.bdt_grid` to a conifer model, one project
     directory per BDT. Return an array of conifer models with the same
