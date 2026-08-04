@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .build_trainds import Paths
-from .utils import midpoint_solve, t_to_step
+from .utils import initial_noise, midpoint_solve, t_to_step
 
 import numpy as np
 from xgboost import XGBRegressor, XGBModel
@@ -90,8 +90,16 @@ class FlowBDT():
         return np.column_stack([bdt.predict(xt) for bdt in self.bdt_grid[step]])
 
 
-    def sample(self, n_samples: int) -> NDArray:
-        x0 = np.random.normal(size = (n_samples, self.n_channels)).astype(np.float32)
+    def sample(
+            self, 
+            n_samples: int | None = None,
+            x0: NDArray | None = None
+        ) -> NDArray:
+        """Starting from noise, provided or sampled here, integrate the learnt
+        vector field to generate a new event.
+        """
+        x0 = initial_noise(n_samples, self.n_channels, x0)
+
         return midpoint_solve(self.predict, x0, self.n_steps)
 
 
