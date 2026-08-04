@@ -3,7 +3,6 @@ from __future__ import annotations
 from .datasets import Dataset
 from .codecs import Codec
 from .build_trainds import build_trainds, Paths
-from .flowbdt import FlowBDT
 from .configs import Config
 
 import numpy as np
@@ -16,6 +15,8 @@ from numpy.typing import NDArray
 def setup_from_config(config: Config) -> tuple[Dataset, Codec, FlowBDT, Paths, NDArray]:
     """Load the dataset, fit + apply the codec, build the flow-matching
     training set, and construct the (untrained) model using the config."""
+    from .flowbdt import FlowBDT        # Deferred: `flowbdt` imports this module
+
     data = config.dataset_cls()
 
     codec = config.codec_cls(config.s1phi)
