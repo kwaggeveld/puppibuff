@@ -31,7 +31,7 @@ def convert_bdt(bdt: XGBModel, config: dict, output_dir: Path, name: str) -> Mod
 
 def convert_grid(
     model: FlowBDT,
-    config: dict | None = None,
+    config_overrides: dict | None = None,
     output_dir: str = "flowhls",
 ) -> NDArray:
     """Convert every BDT of `model.bdt_grid` to a conifer model, one project
@@ -43,7 +43,7 @@ def convert_grid(
             "Multi-output BDTs are not supported by conifer."
         )
 
-    config = hls_config() if config is None else config
+    config = hls_config(**(config_overrides or {}))
 
     root = Path(output_dir).resolve()
 
