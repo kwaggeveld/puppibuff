@@ -1,9 +1,6 @@
 from puppibuff.analyses import loss_vs_nodes, plot_loss_vs_nodes
 from puppibuff.configs import FlatPuppiJetConfig
 
-from puppibuff.utils import setup_from_config
-
-
 #-----------------------------------------------------------------------------
 
 MAX_DEPTHS   = [ 2, 3, 4, 6, 8 ]
@@ -12,7 +9,7 @@ N_ESTIMATORS = [ 5, 10, 20, 50, 100, 200 ]
 def main():
     config = FlatPuppiJetConfig()
 
-    data, codec, _, x, y = setup_from_config(config)
+    data, codec, _, x, y = config.setup()
 
     results = loss_vs_nodes(
         x, y, data, codec,

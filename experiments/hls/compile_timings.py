@@ -1,9 +1,6 @@
 from puppibuff.configs import FlatPuppiJetConfig
 from puppibuff.hls import FlowHLS
 
-from puppibuff.utils import setup_from_config
-
-
 from time import time
 import os
 
@@ -24,7 +21,7 @@ def main():
     config.tree_config["n_estimators"] = 20
     config.tree_config["max_depth"] = 2
 
-    _, _, model, x, y = setup_from_config(config)
+    _, _, model, x, y = config.setup()
 
     model.fit(x, y)
 

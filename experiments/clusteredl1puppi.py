@@ -1,16 +1,12 @@
 from puppibuff.analyses.plotting import plot_distributions_jet
 from puppibuff.configs import ClusteredL1PuppiConfig
 
-from puppibuff.utils import setup_from_config
-
-
-
 
 def main():
     config = ClusteredL1PuppiConfig()
     config.n_events = 500_000
 
-    data, codec, model, x, y = setup_from_config(config)
+    data, codec, model, x, y = config.setup()
 
     model.fit(x, y)
 

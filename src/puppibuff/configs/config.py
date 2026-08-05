@@ -2,9 +2,13 @@ from __future__ import annotations
 
 from ..datasets import Dataset
 from ..codecs import Codec
+from ..build_trainds import build_trainds, Paths
+from ..flowbdt import FlowBDT
 
 from abc import ABC
 from dataclasses import dataclass, field
+
+from numpy.typing import NDArray
 from typing import ClassVar
 
 #-----------------------------------------------------------------------------
@@ -40,3 +44,19 @@ class Config(ABC):
     def __post_init__(self) -> None:
         if self.multi_output:
             self.tree_config.setdefault("multi_strategy", "multi_output_tree")
+
+    def setup(self) -> tuple[Dataset, Codec, FlowBDT, Paths, NDArray]:
+        """Load the dataset, fit + apply the codec, build the flow-matching
+        training set, and construct the (untrained) model."""
+        data = self.dataset_cls()
+
+        codec = self.codec_cls(self.s1phi)
+        codec.fit(data)
+
+        x1 = codec.encode(data[:self.n_events])
+        x, y = build_trainds(x1, self.n_steps)
+
+        sizes = codec.group_sizes() if self.multi_output else None
+        model = FlowBDT(self.tree_config, sizes)
+
+        return data, codec, model, x, y

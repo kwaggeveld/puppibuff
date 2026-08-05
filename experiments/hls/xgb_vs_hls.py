@@ -5,8 +5,6 @@ from puppibuff.configs import FlatPuppiJetConfig
 from puppibuff.hls import FlowHLS
 from puppibuff.utils import initial_noise
 
-from puppibuff import setup_from_config
-
 import sys
 import time
 from pathlib import Path
@@ -54,7 +52,7 @@ def main():                             # Pass directory for the HLS project(s)
     config.tree_config["n_estimators"] = 50
     config.tree_config["max_depth"] = 4
 
-    data, codec, model, x, y = setup_from_config(config)
+    data, codec, model, x, y = config.setup()
 
     if not reuse:
         model.fit(x, y)

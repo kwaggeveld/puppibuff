@@ -1,15 +1,11 @@
 from puppibuff.analyses.plotting import plot_distributions_flattened
 from puppibuff.configs import FlatPuppiJetConfig
 
-from puppibuff.utils import setup_from_config
-
-
-
 
 def main():
     config = FlatPuppiJetConfig(n_events = None)
 
-    data, codec, model, x, y = setup_from_config(config)
+    data, codec, model, x, y = config.setup()
 
     model.fit(x, y)
 

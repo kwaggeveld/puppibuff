@@ -5,7 +5,7 @@ from puppibuff.configs import FlatPuppiJetConfig
 from puppibuff.datasets import Dataset
 from puppibuff.flowbdt import FlowBDT
 from puppibuff.solvers import ab2_solve, euler_solve, heun_solve, midpoint_solve
-from puppibuff.utils import initial_noise, setup_from_config
+from puppibuff.utils import initial_noise
 
 from pathlib import Path
 
@@ -96,7 +96,7 @@ def main():
 
     config = make_config(N_STEPS)
 
-    data, codec, model, x, y = setup_from_config(config)
+    data, codec, model, x, y = config.setup()
     model.fit(x, y)
 
 

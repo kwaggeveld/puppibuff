@@ -1,10 +1,6 @@
 from puppibuff.analyses.plotting import plot_distributions_jet
 from puppibuff.configs import ClusteredL1PuppiConfig
 
-from puppibuff.utils import setup_from_config
-
-
-
 
 def main():
                                         # One BDT per (step, channel), each
@@ -16,7 +12,7 @@ def main():
     config.tree_config["max_depth"] = 4
 
 
-    data, codec, model, x, y = setup_from_config(config)
+    data, codec, model, x, y = config.setup()
 
     model.fit(x, y)
 

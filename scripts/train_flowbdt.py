@@ -1,7 +1,5 @@
 from puppibuff.configs import FlatPuppiJetConfig
 
-from puppibuff.utils import setup_from_config
-
 import sys
 from pathlib import Path
 
@@ -18,7 +16,7 @@ def main():                             # Pass the export directory as argument 
 
     config = FlatPuppiJetConfig()
 
-    _, codec, model, x, y = setup_from_config(config)
+    _, codec, model, x, y = config.setup()
 
     model.fit(x, y)
 

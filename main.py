@@ -1,14 +1,13 @@
 from puppibuff.analyses.plotting import plot_distributions_flattened
 from puppibuff.configs import FlatPuppiJetConfig
 
-from puppibuff.utils import setup_from_config
 from puppibuff.weighting import pt_power_weights
 
 
 def main():
     config = FlatPuppiJetConfig()
 
-    data, codec, model, x, y = setup_from_config(config)
+    data, codec, model, x, y = config.setup()
 
     weights = pt_power_weights(data['pt'][:config.n_events], alpha = 0.3)
     model.fit(x, y, sample_weights = weights)

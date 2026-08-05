@@ -1,8 +1,6 @@
 from puppibuff.configs import FlatPuppiJetConfig
 from puppibuff.hls import FlowHLS
 
-from puppibuff.utils import setup_from_config
-
 import sys
 
 MERGED = True
@@ -19,7 +17,7 @@ def main():                             # Pass directory for the HLS project
     config.tree_config["n_estimators"] = 20
     config.tree_config["max_depth"] = 2
 
-    _, _, model, x, y = setup_from_config(config)
+    _, _, model, x, y = config.setup()
 
     model.fit(x, y)
     hls = FlowHLS.convert(model, output_dir = output_dir, merged = MERGED)

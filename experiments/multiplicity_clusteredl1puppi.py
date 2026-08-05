@@ -1,10 +1,6 @@
 from puppibuff.analyses.plotting import plot_distributions_jet
 from puppibuff.configs import MultiplicityL1PuppiConfig
 
-from puppibuff.utils import setup_from_config
-
-
-
 
 def main():
     config = MultiplicityL1PuppiConfig(multi_output = False,
@@ -15,7 +11,7 @@ def main():
     config.tree_config["max_depth"] = 2
 
 
-    data, codec, model, x, y = setup_from_config(config)
+    data, codec, model, x, y = config.setup()
 
     model.fit(x, y)
 
