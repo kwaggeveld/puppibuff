@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from .build_trainds import Paths
-from .utils import initial_noise, midpoint_solve, t_to_step
+from .solvers import midpoint_solve
+from .utils import initial_noise, t_to_step
 
 import numpy as np
 from xgboost import XGBRegressor, XGBModel

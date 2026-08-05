@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from ..flowbdt import FlowBDT
-from ..utils import initial_noise, midpoint_solve, t_to_step
+from ..solvers import midpoint_solve
+from ..utils import initial_noise, t_to_step
 from . import write
 from .compile import compile_grid, compile_flowhls
 from .convert import convert_grid
