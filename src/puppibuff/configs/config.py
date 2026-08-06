@@ -35,7 +35,8 @@ class Config(ABC):
     n_steps:  int = 15
     n_events: int | None = 500_000      # None => train on the entire dataset
 
-    s1phi: bool = True                  # Encode phi -> (sin, cos)
+    s1phi: bool = False                 # Encode phi -> (sin, cos) rather than
+                                        # normalising it into one channel
 
     multi_output: bool = False          # One multi-output BDT per (step, channel)
 

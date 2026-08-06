@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ..solvers import midpoint_solve
+
 from conifer.model import ModelBase
 
 # conifer's HLS output is written one model per translation unit: `parameters.h`
@@ -32,6 +34,11 @@ SPLIT = "<"
                                         # synthesises one top at a time, so
                                         # `FlowHLS.flowhls_top` picks between them
 SAMPLE_TOP = "flowhls_sample"
+
+                                        # The scheme `_sample_top` unrolls, and so
+                                        # the only one a compiled merged design can
+                                        # sample with. `FlowHLS.sample` guards on it
+SAMPLE_SOLVER = midpoint_solve
 
 
 def field_top(step: int) -> str:
@@ -286,7 +293,7 @@ def flowhls_cpp(names: list[list[str]]) -> str:
 {calls}
 }}""")
 
-    tops = "\n".join(tops)
+    tops = "\n".join(tops)                  # type: ignore
 
     return f"""#include "flowhls.h"
 #include "ap_types.h"

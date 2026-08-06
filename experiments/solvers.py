@@ -4,7 +4,8 @@ from puppibuff.codecs import Codec
 from puppibuff.configs import FlatPuppiJetConfig
 from puppibuff.datasets import Dataset
 from puppibuff.flowbdt import FlowBDT
-from puppibuff.solvers import ab2_solve, euler_solve, heun_solve, midpoint_solve
+from puppibuff.solvers import (ab2_solve, euler_solve, heun_solve,
+                               midpoint_solve, Solver)
 from puppibuff.utils import initial_noise
 
 from pathlib import Path
@@ -12,7 +13,6 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
-from typing import Callable
 from numpy.typing import NDArray
 
 #-----------------------------------------------------------------------------
@@ -41,7 +41,7 @@ SOLVERS = {
 
 
 def make_config(n_steps: int) -> FlatPuppiJetConfig:
-    config = FlatPuppiJetConfig(n_steps = n_steps, s1phi = False)
+    config = FlatPuppiJetConfig(n_steps = n_steps)
     config.tree_config["n_estimators"] = N_ESTIMATORS
     config.tree_config["max_depth"]    = MAX_DEPTH
 
@@ -52,13 +52,13 @@ def evaluate(
         data: Dataset,
         codec: Codec,
         model: FlowBDT,
-        solver: Callable,
+        solver: Solver,
         x0: NDArray,
     ) -> tuple[dict[str, NDArray], dict[str, float]]:
     """Integrate the field with `solver` from `x0`, decode, and score every
     channel against the full dataset.
     """
-    samples = codec.decode(solver(model.predict, x0, model.n_steps))
+    samples = codec.decode(model.sample(x0 = x0, solver = solver))
 
     return samples, { channel: channel_mse(data[channel], samples[channel])
                       for channel in CHANNELS }

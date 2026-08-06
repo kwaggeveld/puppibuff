@@ -5,8 +5,7 @@ from puppibuff.configs import ClusteredL1PuppiConfig
 def main():
                                         # One BDT per (step, channel), each
                                         # predicting that channel for all slots
-    config = ClusteredL1PuppiConfig(multi_output = True,
-                                    s1phi = False)
+    config = ClusteredL1PuppiConfig(multi_output = True)
     config.n_events = 500_000
     config.tree_config["n_estimators"] = 100
     config.tree_config["max_depth"] = 4

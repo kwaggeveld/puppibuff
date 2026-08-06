@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from puppibuff.analyses.plotting import plot_distributions_flattened
 from puppibuff.configs import FlatPuppiJetConfig
-from puppibuff.hls import FlowHLS
+from puppibuff.hls import FlowHLS, write
 from puppibuff.utils import initial_noise
 
 import sys
@@ -46,8 +46,7 @@ def main():                             # Pass directory for the HLS project(s)
 
     reuse = Path(workdir).exists() and any(Path(workdir).glob("step*"))
 
-    config = FlatPuppiJetConfig(s1phi = False,
-                                n_steps = 15,
+    config = FlatPuppiJetConfig(n_steps = 15,
                                 n_events = 2_000_000)
     config.tree_config["n_estimators"] = 50
     config.tree_config["max_depth"] = 4
@@ -69,8 +68,13 @@ def main():                             # Pass directory for the HLS project(s)
         samplers.insert(0, ("xgboost", model, N_SAMPLES))                     # type: ignore
 
     for label, sampler, n_samples in samplers:
+                                        # Pinned, not defaulted: the merged design
+                                        # has `write.SAMPLE_SOLVER` compiled into
+                                        # it, so an A/B against XGBoost is only
+                                        # apples-to-apples on that same scheme
         sample = timed(f"Sampling {n_samples} with {label}",
-                       sampler.sample, x0 = x0[:n_samples])
+                       sampler.sample, x0 = x0[:n_samples],
+                       solver = write.SAMPLE_SOLVER)
 
         figure = plot_distributions_flattened(
             data, codec.decode(sample), n_events = config.n_events,

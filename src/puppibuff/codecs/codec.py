@@ -12,7 +12,7 @@ from numpy.typing import NDArray
 class Codec(ABC):
     s_EXPORT_KEYS: list[str]
 
-    def __init__(self, s1phi: bool = True) -> None:
+    def __init__(self, s1phi: bool = False) -> None:  # Agrees with Config.s1phi
         self.s1phi = s1phi
 
     def check_dataset(self, data: Dataset) -> None:

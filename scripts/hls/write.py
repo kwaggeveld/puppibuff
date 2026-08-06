@@ -11,8 +11,7 @@ def main():                             # Pass directory for the HLS project
     else:
         output_dir = "flowhls"
 
-    config = FlatPuppiJetConfig(s1phi = False,
-                                n_steps = 4,
+    config = FlatPuppiJetConfig(n_steps = 4,
                                 n_events = 500_000)
     config.tree_config["n_estimators"] = 20
     config.tree_config["max_depth"] = 2

@@ -8,6 +8,9 @@ from numpy.typing import NDArray
 # Velocity field: f(t, x) = dx/dt, same shape as x.
 Field = Callable[[float, NDArray], NDArray]
 
+# Solve(f, x0, n_steps) -> x at t = 1.
+Solver = Callable[[Field, NDArray, int], NDArray]
+
 
 def euler_solve(f: Field, x0: NDArray, n_steps: int) -> NDArray:
     """Euler method of integration. Iterate y_{n + 1} = y_n + hf(t_n, y_n).

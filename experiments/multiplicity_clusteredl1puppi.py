@@ -4,7 +4,6 @@ from puppibuff.configs import MultiplicityL1PuppiConfig
 
 def main():
     config = MultiplicityL1PuppiConfig(multi_output = False,
-                                       s1phi = False,
                                        n_steps = 4)
     config.n_events = 100_000
     config.tree_config["n_estimators"] = 20

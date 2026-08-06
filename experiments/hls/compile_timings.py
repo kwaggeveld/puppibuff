@@ -15,8 +15,7 @@ def timed_compile(model, output_dir: str, n_threads: int | None) -> float:
     return time() - begin
 
 def main():
-    config = FlatPuppiJetConfig(s1phi = False,
-                                n_steps = 4,
+    config = FlatPuppiJetConfig(n_steps = 4,
                                 n_events = 100_000)
     config.tree_config["n_estimators"] = 20
     config.tree_config["max_depth"] = 2
