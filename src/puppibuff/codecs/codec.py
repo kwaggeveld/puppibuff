@@ -41,12 +41,17 @@ class Codec(ABC):
 
     def to_json(self, path: str) -> None:
         with open(path, "w") as file:
-            json.dump({key: getattr(self, key) for key in self.s_EXPORT_KEYS}, file)
+            json.dump({ "codec_cls": type(self).__name__ }
+                      | { key: getattr(self, key) for key in self.s_EXPORT_KEYS }, file)
 
     @classmethod
     def from_json(cls, path: str) -> Codec:
-        obj = cls()
+        from .. import codecs            # Deferred to prevent circular import
+
         with open(path) as f:
-            obj.__dict__.update(json.load(f))                                 # pyright: ignore[reportAttributeAccessIssue]
+            state = json.load(f)
+
+        obj = getattr(codecs, state.pop("codec_cls"))()
+        obj.__dict__.update(state)                                            # pyright: ignore[reportAttributeAccessIssue]
 
         return obj

@@ -108,11 +108,22 @@ class FlowBDT():
 # --- Export/import ---
 
     def to_disk(self, path: str) -> None:
-        dump(self.__dict__, path)
+        """Persist the whole state, and export boosters to binary JSON."""
+        dump(self.__dict__ 
+             | { "bdt_grid": [ bdt.get_booster().save_raw("ubj")
+                               for bdt in self.bdt_grid.ravel() ]}, path)
 
     @classmethod
     def from_disk(cls, path: str) -> FlowBDT:
         obj = cls()
         obj.__dict__.update(load(path))
+
+        grid = []
+        for raw in obj.bdt_grid:        # Seeded from self.config: a raw booster
+            bdt = XGBRegressor(**obj.config)  # carries no sklearn-side params
+            bdt.load_model(raw)                                               # type: ignore
+            grid.append(bdt)
+
+        obj.bdt_grid = np.array(grid, dtype = object).reshape(obj.n_steps, -1)
 
         return obj

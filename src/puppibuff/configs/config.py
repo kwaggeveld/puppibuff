@@ -6,14 +6,15 @@ from ..build_trainds import build_trainds, Paths
 from ..flowbdt import FlowBDT
 
 from abc import ABC
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
+import json
 
 from numpy.typing import NDArray
 from typing import ClassVar
 
 #-----------------------------------------------------------------------------
 
-DEFAULT_TREE_CONFIG: dict = {           # Config copied from BUFF .ipynb
+DEFAULT_TREE_CONFIG = {
     "n_estimators": 50,
     "max_depth": 6,
     "objective": "reg:squarederror",
@@ -61,3 +62,18 @@ class Config(ABC):
         model = FlowBDT(self.tree_config, sizes)
 
         return data, codec, model, x, y
+
+# --- Export/import ---
+
+    def to_json(self, path: str) -> None:
+        with open(path, "w") as file:
+            json.dump({ "config_cls": type(self).__name__ } | asdict(self), file)
+
+    @classmethod
+    def from_json(cls, path: str) -> Config:
+        from .. import configs          # Deferred to prevent circular import
+
+        with open(path) as file:
+            fields = json.load(file)
+
+        return getattr(configs, fields.pop("config_cls"))(**fields)
