@@ -428,7 +428,8 @@ set version { conifer_version }
 
 def build_hls_tcl() -> str:
     """conifer's `hls-template/build_hls.tcl`, minus the testbench (we write
-    none) and reading its one source from the shared `firmware/`.
+    none) and reading its one source from the shared `firmware/` — two levels up,
+    since every block sits in `BLOCKS_DIR` and vitis_hls runs from its directory.
     """
     return """ # Adapted from:
 #################
@@ -457,7 +458,7 @@ if {$opt(reset)} {
 }
 
 set_top ${top}
-add_files ../firmware/${prj_name}.cpp -cflags "-std=c++0x"
+add_files ../../firmware/${prj_name}.cpp -cflags "-std=c++0x"
 
 if {$opt(reset)} {
     open_solution -reset "solution1" -flow_target ${flow_target}
@@ -507,7 +508,7 @@ def build_all_sh(blocks: list[str]) -> str:
 # vitis_hls still writes its own <block>/vitis_hls.log.
 
 set -uo pipefail
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/blocks"
 
 HLS=${HLS:-vitis_hls}
 JOBS=${JOBS:-4}

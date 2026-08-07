@@ -120,9 +120,9 @@ class FlowHLS:
     def _hls_project_files(self, cfg) -> Iterator[tuple[str, str]]:
         """Construct the `.tcl` file and source of each block's HLS project."""
         for block in self.blocks:
-            yield f"{ block }/hls_parameters.tcl", write.hls_parameters_tcl(block, cfg.xilinx_part, cfg.clock_period)
-            yield f"{ block }/build_hls.tcl",      write.build_hls_tcl()
-            yield f"{ block }/vivado_synth.tcl",   write.vivado_synth_tcl(block, cfg.xilinx_part)
+            yield f"blocks/{ block }/hls_parameters.tcl", write.hls_parameters_tcl(block, cfg.xilinx_part, cfg.clock_period)
+            yield f"blocks/{ block }/build_hls.tcl",      write.build_hls_tcl()
+            yield f"blocks/{ block }/vivado_synth.tcl",   write.vivado_synth_tcl(block, cfg.xilinx_part)
 
 
     def _write_flowhls(self) -> None:
@@ -155,6 +155,9 @@ class FlowHLS:
             path = self.output_dir / file
             path.parent.mkdir(parents = True, exist_ok = True)
             path.write_text(source)
+
+                                        # Make script executable
+        (self.output_dir / "build_all.sh").chmod(0o755)
 
         self._call_on_grid("save")      # Write all .json files for `cls.load`
 
