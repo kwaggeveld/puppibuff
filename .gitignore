@@ -12,3 +12,4 @@ __pycache__/
 *.cpp
 *.tcl
 *.json
+*.sh

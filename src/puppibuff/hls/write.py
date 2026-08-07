@@ -1,35 +1,29 @@
 from __future__ import annotations
 
 from puppibuff.solvers import ab2_solve
+from .utils import BRIDGE_MODULE
 
 from pathlib import Path
+from conifer import __version__ as conifer_version
 from conifer.backends import xilinxhls
 
 from conifer.backends.xilinxhls.writer import XilinxHLSConfig, XilinxHLSModel
 
 #-----------------------------------------------------------------------------
 
-SAMPLE_SOLVER = ab2_solve
+                                        # The scheme `sample_cpp` writes, 
+SAMPLE_SOLVER = ab2_solve               # `FlowHLS.sample` guards this.
 
 #--- Naming ---
 
+SOLVER     = "ab2"
+STEP_TOP   = f"{ SOLVER }_step"
+SAMPLE_TOP = f"{ SOLVER }_sample"
+
+
 def field_name(step: int) -> str:
-    """Construct function name for each field step."""
-    return f"flowhls_field_s{step:02d}"
-
-
-def _solver_name() -> str:
-    return "ab2"
-
-
-def _step_name() -> str:
-    """Return solver step name."""
-    return f"{_solver_name()}_step"
-
-
-def _sample_name() -> str:
-    """Return function name for sampling."""
-    return f"{_solver_name()}_sample"
+    """Construct the name of each field step."""
+    return f"field_s{ step :02d}"
 
 #--- Utility ---
 
@@ -41,12 +35,19 @@ def _over_all_channels(body: str) -> str:
              "    }")
 
 
+def _partition(*variables: str) -> str:
+    """Write out partitioning pragma for `variable`."""
+    return '\n'.join(f"    #pragma HLS array_partition variable={ variable }"
+                     for variable in variables)
+
+
 def _define_field(step: int, calls: str) -> str:
     return f"""
 void { field_name(step) }(state_arr_t x, state_arr_t v) {{
     #pragma HLS pipeline
-    #pragma HLS array_partition variable=x
-    #pragma HLS array_partition variable=v
+
+{ _partition("x", "v") }
+
 { calls }
 }}
 
@@ -99,13 +100,13 @@ def _tree(tree, idx: int) -> str:
 
 
 def bdt_sXX_gXX_h(model: XilinxHLSModel) -> str:
-    trees = "\n".join(_tree(tree[0], idx)
+    trees = '\n'.join(_tree(tree[0], idx)
                       for idx, tree in enumerate(model.trees))
 
                                             # conifer: (init_predict + sum) * norm,
                                             # in that order and all in score_t
     n_trees = len(model.trees)
-    scores = "\n".join(f"  scores[{ idx :2}] = tree_{ idx :02d}.decision_function(x, split_fn);"
+    scores = '\n'.join(f"  scores[{ idx :2}] = tree_{ idx :02d}.decision_function(x, split_fn);"
                        for idx in range(n_trees))
 
     name = model.config.project_name                                          # type: ignore[reportAttributeAccessIssue]
@@ -141,7 +142,7 @@ inline score_t decision_function(state_arr_t x)
 {{
     #pragma HLS pipeline
     score_t scores[n_trees];
-    #pragma HLS array_partition variable=scores
+{ _partition("scores") }
 
 { scores }
 
@@ -223,20 +224,9 @@ def bdt_h(unroll: bool) -> str:
 
 #--- Writers: fields ---
 
-def flowhls_ih(names: list[list[str]]) -> str:
-    """Construct the `.ih` for FlowHLS, which includes all BDT headers."""
-    bdt_headers = "\n".join(f"#include \"bdt_grid/{ name }.h\""
-                            for row in names for name in row)
-    return f"""#include "flowhls.h"
-
-{ bdt_headers }
-
-"""
-
-
 def flowhls_h(n_steps: int) -> str:
-    """Declare one field top per step, plus the sampler over them."""
-    field_declarations = "\n".join(f"void {field_name(step)}(state_arr_t x, state_arr_t v);"
+    """Declare one field top per step, plus the solver over them."""
+    field_declarations = '\n'.join(f"void { field_name(step) }(state_arr_t x, state_arr_t v);"
                                      for step in range(n_steps))
 
     return f"""#ifndef FLOWHLS_H_
@@ -246,10 +236,10 @@ def flowhls_h(n_steps: int) -> str:
 
 { field_declarations  }
 
-void narrow(accum_arr_t from, state_arr_t to);
-void { _step_name() }(accum_arr_t x_in, state_arr_t v, state_arr_t v_prev, accum_arr_t x_out);
+void narrow(accum_t const *from, state_arr_t to);
+void { STEP_TOP }(accum_arr_t x_in, state_arr_t v, state_arr_t v_prev, accum_arr_t x_out);
 
-void { _sample_name() }(accum_arr_t x0, accum_arr_t x1);
+void { SAMPLE_TOP }(accum_arr_t x0, accum_arr_t x_out);
 
 #endif
 
@@ -257,29 +247,31 @@ void { _sample_name() }(accum_arr_t x0, accum_arr_t x1);
 
 
 def field_sXX_cpp(step: int, bdts_in_step: list[str]) -> str:
-    """Define the field top functions.Return as dict, with key the filename
-    and item the source.
-    """
-    calls = "\n".join(f"    v[{ idx }] = { bdt_name }::decision_function(x);"
+    """Define one step's field top. Only include this step's BDT headers."""
+    includes = '\n'.join(f"#include \"bdt_grid/{ bdt_name }.h\""
+                         for bdt_name in bdts_in_step)
+
+    calls = '\n'.join(f"    v[{ idx }] = { bdt_name }::decision_function(x);"
                             for idx, bdt_name in enumerate(bdts_in_step))
 
-    return "#include \"flowhls.ih\"" + _define_field(step, calls)
+    return f"#include \"flowhls.h\"\n\n{ includes }\n" + _define_field(step, calls)
 
 
-def solve_step_cpp(n_steps: int) -> str:
+#--- Writers: solver ---
+
+
+def ab2_step_cpp(n_steps: int) -> str:
     """Construct the solver step function, given the number of steps."""
     step_size = 1. / (n_steps - 1)
-    return f"""#include "flowhls.ih"
+    return f"""#include "flowhls.h"
 
+                                        // c1 = h * 1.5, c2 = h * 0.5
 static accum_t const c1 = { step_size / 2 * 3 };
 static accum_t const c2 = { step_size / 2 };
 
-void { _step_name() }(accum_arr_t x_in, state_arr_t v, state_arr_t v_prev, accum_arr_t x_out)
+void { STEP_TOP }(accum_arr_t x_in, state_arr_t v, state_arr_t v_prev, accum_arr_t x_out)
 {{
-    #pragma HLS array_partition variable=x_in
-    #pragma HLS array_partition variable=v
-    #pragma HLS array_partition variable=v_prev
-    #pragma HLS array_partition variable=x_out
+{ _partition("x_in", "v", "v_prev", "x_out") }
 
                                         // x = x + c1 * v - c2 * v_prev
     { _over_all_channels("x_out[idx] = x_in[idx] + c1 * v[idx] - c2 * v_prev[idx];") }
@@ -289,9 +281,9 @@ void { _step_name() }(accum_arr_t x_in, state_arr_t v, state_arr_t v_prev, accum
 
 
 def narrow_cpp() -> str:
-    return f"""#include "flowhls.ih"
+    return f"""#include "flowhls.h"
                                         // Cast all `accum_t` back to `state_t`
-void narrow(accum_arr_t from, state_arr_t to)
+void narrow(accum_t const *from, state_arr_t to)
 {{
     #pragma HLS inline
     { _over_all_channels("to[idx] = static_cast<state_t>(from[idx]);") }
@@ -300,6 +292,266 @@ void narrow(accum_arr_t from, state_arr_t to)
 """
 
 
+def sample_cpp(n_steps: int) -> str:
+    """Unroll `solvers.ab2_solve` over the grid.
+
+    C++ may reuse a buffer whose lifetime has ended, hardware may not, so the
+    state and the velocity each alternate between two of their own. The first
+    interval has no history; passing `v` as `v_prev` makes the step
+    `(c1 - c2) * v = h * v`, which is the euler start `ab2_solve` takes.
+    """
+    x_buffers = [ "xa", "xb" ]
+    v_buffers = [ "va", "vb" ]
+
+    body = ""
+    for step in range(n_steps - 1):     # ab2 never evaluates the field at t = 1
+        v      = v_buffers[step % 2]
+        v_prev = v if step == 0 else v_buffers[(step - 1) % 2]
+
+        x_in   = "x0"    if step == 0           else x_buffers[(step - 1) % 2]
+        x_out  = "x_out" if step == n_steps - 2 else x_buffers[step % 2]
+
+        start = "     // No history yet: v_prev = v" if step == 0 else ""
+
+        body += f"""
+    narrow({ x_in }, xs);
+    { field_name(step) }(xs, { v });
+    { STEP_TOP }({ x_in }, { v }, { v_prev }, { x_out });{ start }
+"""
+
+    return f"""#include "flowhls.h"
+                                        // Two-step Adams-Bashforth, unrolled
+void { SAMPLE_TOP }(accum_arr_t x0, accum_arr_t x_out)
+{{
+    #pragma HLS pipeline
+{ _partition("x0", "x_out") }
+                                        // The solver reads x_in and writes
+                                        // x_out, and needs v and v_prev, so
+                                        // both alternate over two buffers
+    accum_arr_t xa, xb;
+    state_arr_t xs, va, vb;
+{ _partition("xa", "xb", "xs", "va", "vb") }
+
+{ body }
+
+}}
+
+"""
+
+
 #--- Writers: misc. ---
 
-# TODO
+def bridge_cpp(n_steps: int) -> str:
+    """Emit the pybind11 bridge. Unlike conifer's, which takes one sample and is
+    looped over from Python, this takes a whole batch and loops in C++.
+    """
+    cases = '\n'.join(" " * 8 + f"case { step }: { field_name(step) }(xt, vt); break;"
+                      for step in range(n_steps))
+
+    return f"""#include "firmware/ap_types.h"
+#include "firmware/flowhls.h"
+    
+#include <vector>
+#include <stdexcept>
+
+
+std::vector<double> field(size_t step, std::vector<double> const &x)
+{{
+    size_t const n_events = x.size() / n_channels;
+    std::vector<double> v(x.size());
+
+    for (size_t event = 0; event != n_events; ++event)
+    {{
+        state_arr_t xt, vt;
+                                        // Cast input to state_t
+        for (size_t idx = 0; idx != n_channels; ++idx)
+            xt[idx] = static_cast<state_t>(x[event * n_channels + idx]);
+
+        switch (step)
+        {{
+{ cases }
+            default: throw std::out_of_range("No such step");
+        }}
+                                        // Cast output to double
+        for (size_t idx = 0; idx != n_channels; ++idx)
+            v[event * n_channels + idx] = static_cast<double>(vt[idx]);
+    }}
+
+    return v;
+}}
+
+std::vector<double> sample(std::vector<double> const &x0)
+{{
+    size_t const n_events = x0.size() / n_channels;
+    std::vector<double> x1(x0.size());
+
+    for (size_t event = 0; event != n_events; ++event)
+    {{
+        accum_arr_t xt, yt;
+                                        // Cast noise to accum_t
+        for (size_t idx = 0; idx != n_channels; ++idx)
+            xt[idx] = static_cast<accum_t>(x0[event * n_channels + idx]);
+
+        { SAMPLE_TOP }(xt, yt);
+                                        // Cast sample to double
+        for (size_t idx = 0; idx != n_channels; ++idx)
+            x1[event * n_channels + idx] = static_cast<double>(yt[idx]);
+    }}
+
+    return x1;
+}}
+
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+
+PYBIND11_MODULE(conifer_bridge_{ BRIDGE_MODULE }, m)
+{{
+    m.def("field",  &field);
+    m.def("sample", &sample);
+}}
+
+"""
+
+
+def hls_parameters_tcl(block: str, part: str, clock_period: int | float) -> str:
+    """The block's build settings, sourced by `build_hls.tcl`."""
+    return f"""set top { block }
+set prj_name { block }
+set part { part }
+set clock_period { clock_period }
+set flow_target vivado
+set export_format ip_catalog
+set m_axi_addr64 false
+set version { conifer_version }
+"""
+
+
+def build_hls_tcl() -> str:
+    """conifer's `hls-template/build_hls.tcl`, minus the testbench (we write
+    none) and reading its one source from the shared `firmware/`.
+    """
+    return """ # Adapted from:
+#################
+#    HLS4ML
+#################
+set tcldir [file dirname [info script]]
+source [file join $tcldir hls_parameters.tcl]
+
+array set opt {
+    reset      0
+    synth      1
+    cosim      0
+    export     0
+}
+
+foreach arg $::argv {
+  foreach o [lsort [array names opt]] {
+    regexp "$o=+(\\\\w+)" $arg unused opt($o)
+  }
+}
+
+if {$opt(reset)} {
+    open_project -reset ${prj_name}
+} else {
+    open_project ${prj_name}
+}
+
+set_top ${top}
+add_files ../firmware/${prj_name}.cpp -cflags "-std=c++0x"
+
+if {$opt(reset)} {
+    open_solution -reset "solution1" -flow_target ${flow_target}
+} else {
+    open_solution "solution1" -flow_target ${flow_target}
+}
+
+set_part ${part}
+create_clock -period ${clock_period} -name default
+
+config_interface -m_axi_addr64=${m_axi_addr64}
+
+if {$opt(synth)} {
+    csynth_design
+}
+
+if {$opt(cosim)} {
+    cosim_design -trace_level all
+}
+
+if {$opt(export)} {
+    export_design -vendor cern.ch -library conifer -ipname ${top} -version ${version} -format ${export_format}
+}
+exit
+"""
+
+
+def vivado_synth_tcl(block: str, part: str) -> str:
+    return f"""add_files { block }/solution1/syn/vhdl
+synth_design -top { block } -part { part }
+report_utilization -file vivado_synth.rpt
+"""
+
+
+def build_all_sh(blocks: list[str]) -> str:
+    """Script to run every block's own `build_hls.tcl`, `JOBS` at a time."""
+    return ("""#!/usr/bin/env bash
+# Run each block's own build_hls.tcl in its own directory, one process each.
+# Each run leaves its vitis_hls.log in the block directory.
+#
+#     ./build_all.sh                      # all blocks, csynth only
+#     ./build_all.sh ab2_step             # one block
+#     ./build_all.sh export=1             # pass options through to build_hls.tcl
+#
+# Blocks run concurrently, JOBS at a time (JOBS=1 for sequential).
+# Console output goes to <block>/build.out.
+# vitis_hls still writes its own <block>/vitis_hls.log.
+
+set -uo pipefail
+cd "$(dirname "$0")"
+
+HLS=${HLS:-vitis_hls}
+JOBS=${JOBS:-4}
+"""
+f"ALL=({ ' '.join(blocks) })\n"
+"""
+# name=value goes to build_hls.tcl, anything else names a block.
+blocks=()
+opts=()
+for arg in "$@"; do
+    case "$arg" in
+        *=*) opts+=("$arg") ;;
+        *)   blocks+=("$arg") ;;
+    esac
+done
+if [ ${#blocks[@]} -eq 0 ]; then
+    blocks=("${ALL[@]}")
+fi
+
+pids=()
+names=()
+for b in "${blocks[@]}"; do
+    while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do
+        sleep 1
+    done
+    ( cd "$b" && "$HLS" -f build_hls.tcl ${opts[@]+"${opts[@]}"} ) >"$b/build.out" 2>&1 &
+    pids+=($!)
+    names+=("$b")
+    echo "launched $b (pid $!)"
+done
+
+failed=()
+for i in "${!pids[@]}"; do
+    if wait "${pids[$i]}"; then
+        echo "--- ${names[$i]} done"
+    else
+        echo "--- ${names[$i]} FAILED (see ${names[$i]}/build.out)"
+        failed+=("${names[$i]}")
+    fi
+done
+
+if [ ${#failed[@]} -ne 0 ]; then
+    echo "failed: ${failed[*]}"
+    exit 1
+fi
+echo "built: ${blocks[*]}"
+""")

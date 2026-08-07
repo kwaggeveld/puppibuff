@@ -7,8 +7,7 @@ from conifer.backends.xilinxhls import auto_config as xilinxhls_config
 #-----------------------------------------------------------------------------
 
 XILINX_PART = "xcvu13p-flga2577-2-e"
-FLOWHLS_PROJECT = "flowhls"             # Names the merged design's bridge and the
-                                        # tcl `prj_name`.
+BRIDGE_MODULE = "flowhls"               # The merged design's pybind11 bridge
 
 def hls_config(**overrides) -> dict:
     """Return default `xilinxhls` config with `XILINX_PART` set."""
@@ -35,9 +34,14 @@ def bridge_path(output_dir: Path | str, name: str) -> Path:
     return Path(output_dir) / f"conifer_bridge_{name}.so"
 
 
+def merged_bridge(root: Path | str) -> Path:
+    """The merged design's bridge. Handles the constant `BRIDGE_MODULE` here."""
+    return bridge_path(root, BRIDGE_MODULE)
+
+
 def merged_build(root: Path | str) -> bool:
     """Whether a merged design was compiled into `root`. The per-BDT layout keeps
     its bridges down in the project directories, so which `.so` sits at the root
     is what tells the two apart.
     """
-    return bridge_path(root, FLOWHLS_PROJECT).exists()
+    return merged_bridge(root).exists()
