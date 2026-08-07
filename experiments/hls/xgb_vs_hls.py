@@ -44,7 +44,7 @@ def main():                             # Pass directory for the HLS project(s)
 
     workdir = sys.argv[1]
 
-    reuse = Path(workdir).exists() and any(Path(workdir).glob("step*"))
+    reuse = Path(workdir).exists() and any(Path(workdir).rglob("bdt_s*_g*.json"))
 
     config = FlatPuppiJetConfig(n_steps = 15,
                                 n_events = 2_000_000)

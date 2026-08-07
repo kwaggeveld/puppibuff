@@ -7,13 +7,13 @@ from pathlib import Path
 import numpy as np
 from conifer.converters import convert_from_xgboost
 
-from conifer.backends.xilinxhls.writer import XilinxHLSModel
+from conifer.model import ModelBase
 from numpy.typing import NDArray
 from xgboost import XGBModel
 
 #-----------------------------------------------------------------------------
 
-def convert_bdt(bdt: XGBModel, config: dict, output_dir: Path, name: str) -> XilinxHLSModel:
+def convert_bdt(bdt: XGBModel, config: dict, output_dir: Path, name: str) -> ModelBase:
     """Convert one BDT into its own project, named `name`."""
     model = convert_from_xgboost(bdt, { **config,
                                         "OutputDir": str(output_dir),

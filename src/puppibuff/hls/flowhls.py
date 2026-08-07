@@ -7,8 +7,9 @@ from . import write
 from .compile import compile_grid, compile_flowhls
 from .convert import convert_grid
 from .load import attach_bridge, import_bridge, load_grid
-from .utils import merged_bridge, merged_build, project_root
+from .utils import BDT_DATA, merged_bridge, merged_build, project_paths
 
+from pathlib import Path
 from conifer.utils.performance import performance_estimates
 import numpy as np
 from tqdm import tqdm
@@ -37,9 +38,14 @@ class FlowHLS:
 
 # --- Constructors ---
 
-    def __init__(self, grid: NDArray, merged: bool = True) -> None:
+    def __init__(
+        self,
+        grid: NDArray,
+        output_dir: Path | str = "flowhls",
+        merged: bool = True,
+    ) -> None:
         self.bdt_grid   = grid          # (n_steps, n_groups) grid of conifer models
-        self.output_dir = project_root(grid[0, 0].config.output_dir)
+        self.output_dir = Path(output_dir).resolve()
         self.n_steps    = grid.shape[0]
         self.n_channels = grid[0, 0].n_features
 
@@ -55,7 +61,7 @@ class FlowHLS:
         output_dir: str = "flowhls",
         merged: bool = True,
     ) -> FlowHLS:
-        return cls(convert_grid(model, config_overrides, output_dir), merged)
+        return cls(convert_grid(model, config_overrides, output_dir), output_dir, merged)
 
 
     @classmethod
@@ -63,12 +69,16 @@ class FlowHLS:
         """Reuse a grid already converted and compiled into `work_dir`, binding
         whichever bridge `compile` built there.
         """
-        merged = merged_build(work_dir)
+        root   = Path(work_dir).resolve()
+        merged = merged_build(root)
+                                        # The merged design keeps its BDTs under
+                                        # `bdt_data`, and shares one bridge
+        grid = load_grid(root / BDT_DATA if merged else root, attach = not merged)
 
-        hls = cls(load_grid(work_dir, attach = not merged), merged)
+        hls = cls(grid, root, merged)
 
         if merged:
-            hls.bridge = import_bridge(merged_bridge(hls.output_dir))
+            hls.bridge = import_bridge(merged_bridge(root))
 
         return hls
 
@@ -125,6 +135,18 @@ class FlowHLS:
             yield f"blocks/{ block }/vivado_synth.tcl",   write.vivado_synth_tcl(block, cfg.xilinx_part)
 
 
+    def _save_bdt_data(self) -> None:
+        """Save every BDT's `.json`, in the same step/group tree 
+        `merged = False` writes.
+        """
+        models_pbar = tqdm(np.ndenumerate(self.bdt_grid),
+                           total = self.bdt_grid.size, desc = "save")
+
+        for (step, group), model in models_pbar:
+            project_dir, name = project_paths(self.output_dir / "bdt_data", step, group)
+            model.save(str(project_dir / f"{name}.json"))
+
+
     def _write_flowhls(self) -> None:
         bdt_config = self.bdt_grid[0, 0].config
 
@@ -159,7 +181,7 @@ class FlowHLS:
                                         # Make script executable
         (self.output_dir / "build_all.sh").chmod(0o755)
 
-        self._call_on_grid("save")      # Write all .json files for `cls.load`
+        self._save_bdt_data()           # Write all .json files for `cls.load`
 
 
 # --- Compiling and building ---

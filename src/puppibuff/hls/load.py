@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 from conifer.model import load_model
 
-from conifer.backends.xilinxhls.writer import XilinxHLSModel
+from conifer.model import ModelBase
 from numpy.typing import NDArray
 
 #-----------------------------------------------------------------------------
@@ -24,7 +24,7 @@ def import_bridge(bridge: Path):
     return module
 
 
-def attach_bridge(model: XilinxHLSModel) -> None:
+def attach_bridge(model: ModelBase) -> None:
     """Attach an already-compiled pybind11 bridge to `model`.
 
     This is roughly the tail of conifer's `XilinxHLSModel.compile()`,
@@ -37,7 +37,7 @@ def attach_bridge(model: XilinxHLSModel) -> None:
     )
 
 
-def load_bdt(output_dir: Path, name: str, attach: bool = True) -> XilinxHLSModel:
+def load_bdt(output_dir: Path, name: str, attach: bool = True) -> ModelBase:
     """Load a written BDT project, and its compiled bridge if `attach`."""
     model = load_model(output_dir / f"{name}.json")
     model.config.output_dir = str(output_dir)
@@ -48,7 +48,7 @@ def load_bdt(output_dir: Path, name: str, attach: bool = True) -> XilinxHLSModel
     return model
 
 
-def load_grid(output_dir: str = "flowhls", attach: bool = True) -> NDArray:
+def load_grid(output_dir: str | Path = "flowhls", attach: bool = True) -> NDArray:
     """Load a grid previously written and compiled by `convert_grid` +
     `compile`, skipping conversion and compilation. Shape is taken from
     the project directories.

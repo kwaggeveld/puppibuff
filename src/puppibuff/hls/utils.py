@@ -8,6 +8,7 @@ from conifer.backends.xilinxhls import auto_config as xilinxhls_config
 
 XILINX_PART = "xcvu13p-flga2577-2-e"
 BRIDGE_MODULE = "flowhls"               # The merged design's pybind11 bridge
+BDT_DATA = "bdt_data"                   # And the folder holding its BDT `.json`s
 
 def hls_config(**overrides) -> dict:
     """Return default `xilinxhls` config with `XILINX_PART` set."""
@@ -18,13 +19,6 @@ def project_paths(root: Path, step: int, group: int) -> tuple[Path, str]:
     """The project directory and BDT name at (step, group)."""
     return (root / f"step{step:02d}" / f"group{group:02d}",
             f"bdt_s{step:02d}_g{group:02d}")
-
-
-def project_root(project_dir: Path | str) -> Path:
-    """`project_paths`' inverse: the root a BDT project sits under. Absolute,
-    since conifer is always given an absolute `OutputDir`.
-    """
-    return Path(project_dir).parents[1]
 
 
 def bridge_path(output_dir: Path | str, name: str) -> Path:
