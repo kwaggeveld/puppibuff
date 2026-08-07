@@ -17,8 +17,8 @@ def hls_config(**overrides) -> dict:
 
 def project_paths(root: Path, step: int, group: int) -> tuple[Path, str]:
     """The project directory and BDT name at (step, group)."""
-    return (root / f"step{step:02d}" / f"group{group:03d}",
-            f"bdt_s{step:02d}_g{group:03d}")
+    return (root / f"step{step:02d}" / f"group{group:02d}",
+            f"bdt_s{step:02d}_g{group:02d}")
 
 
 def project_root(project_dir: Path | str) -> Path:

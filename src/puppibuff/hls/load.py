@@ -5,8 +5,9 @@ from .utils import bridge_path, project_paths
 from importlib.util import spec_from_file_location, module_from_spec
 from pathlib import Path
 import numpy as np
-from conifer.model import ModelBase, load_model
+from conifer.model import load_model
 
+from conifer.backends.xilinxhls.writer import XilinxHLSModel
 from numpy.typing import NDArray
 
 #-----------------------------------------------------------------------------
@@ -23,7 +24,7 @@ def import_bridge(bridge: Path):
     return module
 
 
-def attach_bridge(model: ModelBase) -> None:
+def attach_bridge(model: XilinxHLSModel) -> None:
     """Attach an already-compiled pybind11 bridge to `model`.
 
     This is roughly the tail of conifer's `XilinxHLSModel.compile()`,
@@ -31,12 +32,12 @@ def attach_bridge(model: ModelBase) -> None:
     """
     config = model.config
 
-    model.bridge = import_bridge(                                               # type: ignore
+    model.bridge = import_bridge(                                             # type: ignore
         bridge_path(config.output_dir, config.project_name)                   # type: ignore
     )
 
 
-def load_bdt(output_dir: Path, name: str, attach: bool = True) -> ModelBase:
+def load_bdt(output_dir: Path, name: str, attach: bool = True) -> XilinxHLSModel:
     """Load a written BDT project, and its compiled bridge if `attach`."""
     model = load_model(output_dir / f"{name}.json")
     model.config.output_dir = str(output_dir)

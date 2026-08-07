@@ -9,9 +9,6 @@ from .convert import convert_grid
 from .load import attach_bridge, import_bridge, load_grid
 from .utils import FLOWHLS_PROJECT, bridge_path, merged_build, project_root
 
-from pathlib import Path
-
-from conifer.backends import xilinxhls
 from conifer.utils.performance import performance_estimates
 import numpy as np
 from tqdm import tqdm
@@ -35,8 +32,6 @@ class FlowHLS:
     """
 
     accum_precision = "ap_fixed<32,8>"  # The solver's state, wider than score_t
-
-    flowhls_top = write.SAMPLE_TOP
 
 
 # --- Constructors ---
@@ -103,31 +98,27 @@ class FlowHLS:
 
 
     def _write_flowhls(self) -> None:
-        ref = self.bdt_grid[0, 0]
-
-        if not ref.config.unroll:       # The rolled variant reads its trees from
-            raise NotImplementedError(  # an array `parameters.h` we do not write
-                "Merging is implemented for Unroll = True only"
-            )
-
-        bdt_h = (Path(xilinxhls.__file__).parent
-                 / "firmware" / "BDT_unrolled.h").read_text()
+        bdt_config = self.bdt_grid[0, 0].config
 
         files_to_write = {
-            "firmware/BDT.h":           write.bdt_h_patch(bdt_h),
-            "firmware/ap_types.h":      write.ap_types_h(self.n_channels, ref.config, self.accum_precision,),
+            "firmware/bdt_grid/BDT.h":  write.bdt_h(bdt_config.unroll),
+            "firmware/ap_types.h":      write.ap_types_h(self.n_channels, bdt_config, self.accum_precision,),
+            "firmware/flowhls.ih":      write.flowhls_ih(self.grouped_names),
             "firmware/flowhls.h":       write.flowhls_h(self.n_steps),
-            "firmware/flowhls.cpp":     write.flowhls_cpp(self.grouped_names),
-            "bridge.cpp":               write.bridge_cpp(FLOWHLS_PROJECT, self.n_steps),
-            "hls_parameters.tcl":       write.hls_parameters_tcl(FLOWHLS_PROJECT, self.flowhls_top, ref.config.xilinx_part, ref.config.clock_period),
-            "build_hls.tcl":            write.build_hls_tcl(),
+            "firmware/solve_step.cpp":  write.solve_step_cpp(self.n_steps),
+            "firmware/narrow.cpp":      write.narrow_cpp(),
+            # "bridge.cpp":               write.bridge_cpp(FLOWHLS_PROJECT, self.n_steps),
+            # "hls_parameters.tcl":       write.hls_parameters_tcl(FLOWHLS_PROJECT, self.flowhls_top, ref.config.xilinx_part, ref.config.clock_period),
+            # "build_hls.tcl":            write.build_hls_tcl(),
+        } | {                           # One source per flow step
+            f"firmware/{ write.field_name(step) }.cpp": write.field_sXX_cpp(step, group)
+            for step, group in enumerate(self.grouped_names)
         } | {                           # One header per BDT
-            f"firmware/{name}.h":       write.tree_header(model, name)
+            f"firmware/bdt_grid/{ model.config.project_name }.h": write.bdt_sXX_gXX_h(model)
             for model in self.bdt_grid.flat
-            for name in [ model.config.project_name ]
         }
                                         # Create firmware directory
-        (self.output_dir / "firmware").mkdir(parents = True, exist_ok = True)
+        (self.output_dir / "firmware" / "bdt_grid").mkdir(parents = True, exist_ok = True)
 
         for file, source in files_to_write.items():
             (self.output_dir / file).write_text(source)
