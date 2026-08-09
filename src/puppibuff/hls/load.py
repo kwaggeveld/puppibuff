@@ -5,8 +5,9 @@ from .utils import bridge_path, project_paths
 from importlib.util import spec_from_file_location, module_from_spec
 from pathlib import Path
 import numpy as np
-from conifer.model import ModelBase, load_model
+from conifer.model import load_model
 
+from conifer.model import ModelBase
 from numpy.typing import NDArray
 
 #-----------------------------------------------------------------------------
@@ -31,7 +32,7 @@ def attach_bridge(model: ModelBase) -> None:
     """
     config = model.config
 
-    model.bridge = import_bridge(                                               # type: ignore
+    model.bridge = import_bridge(                                             # type: ignore
         bridge_path(config.output_dir, config.project_name)                   # type: ignore
     )
 
@@ -47,7 +48,7 @@ def load_bdt(output_dir: Path, name: str, attach: bool = True) -> ModelBase:
     return model
 
 
-def load_grid(output_dir: str = "flowhls", attach: bool = True) -> NDArray:
+def load_grid(output_dir: str | Path = "flowhls", attach: bool = True) -> NDArray:
     """Load a grid previously written and compiled by `convert_grid` +
     `compile`, skipping conversion and compilation. Shape is taken from
     the project directories.

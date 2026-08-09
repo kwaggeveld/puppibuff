@@ -7,16 +7,15 @@ from . import write
 from .compile import compile_grid, compile_flowhls
 from .convert import convert_grid
 from .load import attach_bridge, import_bridge, load_grid
-from .utils import FLOWHLS_PROJECT, bridge_path, merged_build, project_root
+from .utils import BDT_DATA, merged_bridge, merged_build, project_paths
 
 from pathlib import Path
-
-from conifer.backends import xilinxhls
 from conifer.utils.performance import performance_estimates
 import numpy as np
 from tqdm import tqdm
 
 from numpy.typing import NDArray
+from typing import Iterator
 
 #-----------------------------------------------------------------------------
 
@@ -36,14 +35,17 @@ class FlowHLS:
 
     accum_precision = "ap_fixed<32,8>"  # The solver's state, wider than score_t
 
-    flowhls_top = write.SAMPLE_TOP
-
 
 # --- Constructors ---
 
-    def __init__(self, grid: NDArray, merged: bool = True) -> None:
+    def __init__(
+        self,
+        grid: NDArray,
+        output_dir: Path | str = "flowhls",
+        merged: bool = True,
+    ) -> None:
         self.bdt_grid   = grid          # (n_steps, n_groups) grid of conifer models
-        self.output_dir = project_root(grid[0, 0].config.output_dir)
+        self.output_dir = Path(output_dir).resolve()
         self.n_steps    = grid.shape[0]
         self.n_channels = grid[0, 0].n_features
 
@@ -59,7 +61,7 @@ class FlowHLS:
         output_dir: str = "flowhls",
         merged: bool = True,
     ) -> FlowHLS:
-        return cls(convert_grid(model, config_overrides, output_dir), merged)
+        return cls(convert_grid(model, config_overrides, output_dir), output_dir, merged)
 
 
     @classmethod
@@ -67,12 +69,16 @@ class FlowHLS:
         """Reuse a grid already converted and compiled into `work_dir`, binding
         whichever bridge `compile` built there.
         """
-        merged = merged_build(work_dir)
+        root   = Path(work_dir).resolve()
+        merged = merged_build(root)
+                                        # The merged design keeps its BDTs under
+                                        # `bdt_data`, and shares one bridge
+        grid = load_grid(root / BDT_DATA if merged else root, attach = not merged)
 
-        hls = cls(load_grid(work_dir, attach = not merged), merged)
+        hls = cls(grid, root, merged)
 
         if merged:
-            hls.bridge = import_bridge(bridge_path(hls.output_dir, FLOWHLS_PROJECT))
+            hls.bridge = import_bridge(merged_bridge(root))
 
         return hls
 
@@ -81,9 +87,28 @@ class FlowHLS:
 
     @property
     def grouped_names(self) -> list[list[str]]:
-        """The BDT project names, nested by step. Shape `write.flowhls_cpp` needs."""
+        """The BDT project names, nested by step. Shape `write.field_sXX_cpp` needs."""
         return [ [ model.config.project_name for model in row ]
                  for row in self.bdt_grid ]
+
+
+    @property
+    def blocks(self) -> list[str]:
+        """Every HLS project of the merged design. `narrow` is inlined into 
+        its callers and the sampler is left to the VHDL, so neither is a block.
+        """
+        return ([ write.field_name(step) for step in range(self.n_steps) ]
+                + [ write.STEP_TOP ])
+
+
+    @property
+    def cpp_sources(self) -> list[str]:
+        """The design's translation units, for `compile`. The blocks' own, plus
+        the two that only the emulated design compiles: `narrow` is inlined by
+        HLS and `sample` is the VHDL top's C++ reference.
+        """
+        return ([ f"firmware/{ block }.cpp" for block in self.blocks ]
+                + [ "firmware/narrow.cpp", "firmware/sample.cpp" ])
 
 
     def _call_on_grid(self, method: str, **kwargs) -> list:
@@ -102,51 +127,75 @@ class FlowHLS:
             self._call_on_grid("write")
 
 
+    def _hls_project_files(self, cfg) -> Iterator[tuple[str, str]]:
+        """Construct the `.tcl` file and source of each block's HLS project."""
+        for block in self.blocks:
+            yield f"blocks/{ block }/hls_parameters.tcl", write.hls_parameters_tcl(block, cfg.xilinx_part, cfg.clock_period)
+            yield f"blocks/{ block }/build_hls.tcl",      write.build_hls_tcl()
+            yield f"blocks/{ block }/vivado_synth.tcl",   write.vivado_synth_tcl(block, cfg.xilinx_part)
+
+
+    def _save_bdt_data(self) -> None:
+        """Save every BDT's `.json`, in the same step/group tree 
+        `merged = False` writes.
+        """
+        models_pbar = tqdm(np.ndenumerate(self.bdt_grid),
+                           total = self.bdt_grid.size, desc = "save")
+
+        for (step, group), model in models_pbar:
+            project_dir, name = project_paths(self.output_dir / "bdt_data", step, group)
+            model.save(str(project_dir / f"{name}.json"))
+
+
     def _write_flowhls(self) -> None:
-        ref = self.bdt_grid[0, 0]
-
-        if not ref.config.unroll:       # The rolled variant reads its trees from
-            raise NotImplementedError(  # an array `parameters.h` we do not write
-                "Merging is implemented for Unroll = True only"
-            )
-
-        bdt_h = (Path(xilinxhls.__file__).parent
-                 / "firmware" / "BDT_unrolled.h").read_text()
+        bdt_config = self.bdt_grid[0, 0].config
 
         files_to_write = {
-            "firmware/BDT.h":           write.bdt_h_patch(bdt_h),
-            "firmware/ap_types.h":      write.ap_types_h(self.n_channels, ref.config, self.accum_precision,),
-            "firmware/flowhls.h":       write.flowhls_h(self.n_steps),
-            "firmware/flowhls.cpp":     write.flowhls_cpp(self.grouped_names),
-            "bridge.cpp":               write.bridge_cpp(FLOWHLS_PROJECT, self.n_steps),
-            "hls_parameters.tcl":       write.hls_parameters_tcl(FLOWHLS_PROJECT, self.flowhls_top, ref.config.xilinx_part, ref.config.clock_period),
-            "build_hls.tcl":            write.build_hls_tcl(),
-        } | {                           # One header per BDT
-            f"firmware/{name}.h":       write.tree_header(model, name)
-            for model in self.bdt_grid.flat
-            for name in [ model.config.project_name ]
+            "firmware/bdt_grid/BDT.h":              write.bdt_h(bdt_config.unroll),
+            "firmware/ap_types.h":                  write.ap_types_h(self.n_channels, bdt_config, self.accum_precision,),
+            "firmware/flowhls.h":                   write.flowhls_h(self.n_steps),
+            f"firmware/{ write.STEP_TOP }.cpp":     write.ab2_step_cpp(self.n_steps),
+            "firmware/narrow.cpp":                  write.narrow_cpp(),
+            "firmware/sample.cpp":                  write.sample_cpp(self.n_steps),
+            "bridge.cpp":                           write.bridge_cpp(self.n_steps),
+            "build_all.sh":                         write.build_all_sh(self.blocks),
+
+            **{                         # One source per flow step
+                f"firmware/{ write.field_name(step) }.cpp": write.field_sXX_cpp(step, bdts_in_step)
+                for step, bdts_in_step in enumerate(self.grouped_names)
+            },
+
+            **{                         # One header per BDT
+                f"firmware/bdt_grid/{ model.config.project_name }.h": write.bdt_sXX_gXX_h(model)
+                for model in self.bdt_grid.flat
+            },
+                                        # HLS project `.tcl` scripts
+            **dict(self._hls_project_files(bdt_config))
         }
-                                        # Create firmware directory
-        (self.output_dir / "firmware").mkdir(parents = True, exist_ok = True)
 
         for file, source in files_to_write.items():
-            (self.output_dir / file).write_text(source)
+            path = self.output_dir / file
+            path.parent.mkdir(parents = True, exist_ok = True)
+            path.write_text(source)
 
-        self._call_on_grid("save")      # Write all .json files for `cls.load`
+                                        # Make script executable
+        (self.output_dir / "build_all.sh").chmod(0o755)
+
+        self._save_bdt_data()           # Write all .json files for `cls.load`
 
 
 # --- Compiling and building ---
 
     def compile(self, n_threads: int | None = None) -> None:
         """Compile for emulation. Conifer implements Python bindings for the HLS
-        code. The merged design is one compilation unit, so `n_threads` applies
+        code. The merged design is one compilation, so `n_threads` applies
         only to the per-BDT grid (None => all cores).
         """
         self.write()
 
         if self.merged:
-            compile_flowhls(self.output_dir, FLOWHLS_PROJECT)
-            self.bridge = import_bridge(bridge_path(self.output_dir, FLOWHLS_PROJECT))
+            compile_flowhls(self.output_dir, self.cpp_sources)
+            self.bridge = import_bridge(merged_bridge(self.output_dir))
         else:
             compile_grid(self.bdt_grid, n_threads)
 
@@ -156,10 +205,10 @@ class FlowHLS:
 
     def build(self, **kwargs) -> list[bool]:
         """Run HLS synthesis over the per-BDT projects. Needs vitis_hls on PATH."""
-        if self.merged:
-            raise NotImplementedError(
-                "Synthesise the merged project with "
-                f"`vitis_hls -f build_hls.tcl` in {self.output_dir}"
+        if self.merged:                 # Every block is its own project, so
+            raise NotImplementedError(  # synthesis is a loop rather than a call
+                f"Synthesise the merged design with `./build_all.sh` "
+                f"in {self.output_dir}"
             )
 
         return self._call_on_grid("build", **kwargs)

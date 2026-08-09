@@ -6,8 +6,8 @@ from .utils import hls_config, project_paths
 from pathlib import Path
 import numpy as np
 from conifer.converters import convert_from_xgboost
-from conifer.model import ModelBase
 
+from conifer.model import ModelBase
 from numpy.typing import NDArray
 from xgboost import XGBModel
 
