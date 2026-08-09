@@ -7,7 +7,7 @@ from . import write
 from .compile import compile_grid, compile_flowhls
 from .convert import convert_grid
 from .load import attach_bridge, import_bridge, load_grid
-from .utils import BDT_DATA, merged_bridge, merged_build, project_paths
+from .utils import merged_bridge, merged_build, project_paths
 
 from pathlib import Path
 from conifer.utils.performance import performance_estimates
@@ -73,7 +73,7 @@ class FlowHLS:
         merged = merged_build(root)
                                         # The merged design keeps its BDTs under
                                         # `bdt_data`, and shares one bridge
-        grid = load_grid(root / BDT_DATA if merged else root, attach = not merged)
+        grid = load_grid(root, attach = not merged)
 
         hls = cls(grid, root, merged)
 
@@ -143,7 +143,7 @@ class FlowHLS:
                            total = self.bdt_grid.size, desc = "save")
 
         for (step, group), model in models_pbar:
-            project_dir, name = project_paths(self.output_dir / "bdt_data", step, group)
+            project_dir, name = project_paths(self.output_dir, step, group)
             model.save(str(project_dir / f"{name}.json"))
 
 

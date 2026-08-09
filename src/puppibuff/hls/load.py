@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .utils import bridge_path, project_paths
+from .utils import BDT_DATA, bridge_path, project_paths
 
 from importlib.util import spec_from_file_location, module_from_spec
 from pathlib import Path
@@ -54,12 +54,13 @@ def load_grid(output_dir: str | Path = "flowhls", attach: bool = True) -> NDArra
     the project directories.
     """
     root = Path(output_dir).resolve()
+    bdt_data = root / BDT_DATA
 
-    n_steps  = len(list(root.glob("step*")))
+    n_steps  = len(list(bdt_data.glob("/step*")))
     if not n_steps:
         raise FileNotFoundError(f"No step directories in {root}, convert a grid first.")
 
-    n_groups = len(list((root / "step00").glob("group*")))
+    n_groups = len(list((bdt_data / "step00").glob("group*")))
 
     grid = [
         load_bdt(*project_paths(root, step, group), attach = attach)
