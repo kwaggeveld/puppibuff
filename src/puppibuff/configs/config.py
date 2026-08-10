@@ -47,10 +47,12 @@ class Config(ABC):
         if self.multi_output:
             self.tree_config.setdefault("multi_strategy", "multi_output_tree")
 
-    def setup(self) -> tuple[Dataset, Codec, FlowBDT, Paths, NDArray]:
+    def setup(self, data: Dataset | None = None) -> tuple[Dataset, Codec, FlowBDT, Paths, NDArray]:
         """Load the dataset, fit + apply the codec, build the flow-matching
-        training set, and construct the (untrained) model."""
-        data = self.dataset_cls()
+        training set, and construct the (untrained) model. Pass an already-loaded
+        `data` to reuse it instead of reloading from disk.
+        """
+        data = data if data is not None else self.dataset_cls()
 
         codec = self.codec_cls(self.s1phi)
         codec.fit(data)
