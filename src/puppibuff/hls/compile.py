@@ -76,5 +76,7 @@ def compile_flowhls(output_dir: Path, files: list[str]) -> None:
 
     if system(command) != 0:
         raise RuntimeError(f"Failed to compile merged project in { output_dir }")
-
+    
+    print("Compiled merged FlowHLS.")
+    
     _flowhls_build = output_dir

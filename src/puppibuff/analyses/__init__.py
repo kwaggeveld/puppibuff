@@ -1,6 +1,6 @@
 from .losses import channel_mse, total_mse
 from .node_analysis import count_nodes, loss_vs_nodes, plot_loss_vs_nodes
-from .plotting import plot_distributions_flattened, plot_distributions_jet
+from .plotting import plot_histograms, plot_distributions
 
 __all__ = [
     "channel_mse",
@@ -8,6 +8,6 @@ __all__ = [
     "count_nodes",
     "loss_vs_nodes",
     "plot_loss_vs_nodes",
-    "plot_distributions_flattened",
-    "plot_distributions_jet",
+    "plot_histograms",
+    "plot_distributions",
 ]

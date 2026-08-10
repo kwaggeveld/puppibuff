@@ -1,4 +1,4 @@
-from puppibuff.analyses.plotting import plot_distributions_jet
+from puppibuff.analyses.plotting import plot_histograms
 from puppibuff.configs import ClusteredL1PuppiConfig
 
 
@@ -14,8 +14,8 @@ def main():
 
     samples = codec.decode(raw_samples)
 
-    figure = plot_distributions_jet(
-        data, samples, channels = ["pt", "eta", "phi"], n_events = config.n_events,
+    figure = plot_histograms(
+        data, samples, n_events = config.n_events,
     )
 
     figure.show()

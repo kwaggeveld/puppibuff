@@ -1,5 +1,5 @@
 from puppibuff.analyses.losses import channel_mse
-from puppibuff.analyses.plotting import plot_distributions_flattened
+from puppibuff.analyses.plotting import plot_histograms
 from puppibuff.codecs import Codec
 from puppibuff.configs import FlatPuppiJetConfig
 from puppibuff.datasets import Dataset
@@ -118,7 +118,7 @@ def main():
 
             if repeat > 0: continue     # One plot per method
 
-            figure = plot_distributions_flattened(
+            figure = plot_histograms(
                 data, samples, channels = CHANNELS, n_events = config.n_events,
             )
             figure.savefig(f"{outdir}/{label}.pdf")

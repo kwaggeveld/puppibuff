@@ -1,4 +1,4 @@
-from puppibuff.analyses.plotting import plot_distributions_flattened
+from puppibuff.analyses.plotting import plot_histograms
 from puppibuff.configs import FlatPuppiJetConfig
 
 from puppibuff.weighting import pt_power_weights
@@ -16,7 +16,7 @@ def main():
 
     samples = codec.decode(raw_samples)
 
-    figure = plot_distributions_flattened(data, samples, n_events = config.n_events)
+    figure = plot_histograms(data, samples, n_events = config.n_events)
     figure.show()
     input()
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from puppibuff.analyses.plotting import plot_distributions_flattened
+from puppibuff.analyses.plotting import plot_histograms
 from puppibuff.configs import FlatPuppiJetConfig
 from puppibuff.hls import FlowHLS, write
 from puppibuff.utils import initial_noise
@@ -76,7 +76,7 @@ def main():                             # Pass directory for the HLS project(s)
                        sampler.sample, x0 = x0[:n_samples],
                        solver = write.SAMPLE_SOLVER)
 
-        figure = plot_distributions_flattened(
+        figure = plot_histograms(
             data, codec.decode(sample), n_events = config.n_events,
         )
         figure.suptitle(label)

@@ -1,4 +1,4 @@
-from puppibuff.analyses.plotting import plot_distributions_flattened
+from puppibuff.analyses.plotting import plot_histograms
 from puppibuff.configs import FlatPuppiJetConfig
 from puppibuff.hls import FlowHLS
 
@@ -30,7 +30,7 @@ def main():                             # Pass directory for the HLS project(s)
 
     sample = hls.sample(N_HLS)
 
-    figure = plot_distributions_flattened(
+    figure = plot_histograms(
         data, codec.decode(sample), n_events = config.n_events,
     )
 
