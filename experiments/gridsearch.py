@@ -26,6 +26,14 @@ N_EVENTS     = [ 500_000, 2_000_000 ]   # Training-set size; None => whole datas
 
 N_SAMPLES    = 1_000_000                # Events drawn from each trained model
 
+                                        # Grid axes, ordered as product() combines
+                                        # them into each grid point below
+AXES: tuple[str, ...] = ( "max_depth", "n_estimators", "s1phi", "n_steps", "n_events" )
+
+NEST_BY = [ "s1phi", "n_steps" ]        # Nest output figures one subdir per axis
+                                        # listed here, in order; the remaining axes
+                                        # go into the filename. [] => flat
+
 #-----------------------------------------------------------------------------
 
 def make_config(max_depth: int, n_estimators: int, s1phi: bool,
@@ -57,11 +65,29 @@ def suptitle(grid_pt: tuple, size: int, per_channel: dict[str, float],
     return params + "\n" + scores
 
 
-def filename(grid_pt: tuple) -> str:
-    """Descriptive filename encoding one grid point."""
-    max_depth, n_estimators, s1phi, n_steps, n_events = grid_pt
-    return (f"d{ max_depth }_nt{ n_estimators }_s1{ 'T' if s1phi else 'F' }"
-            f"_ns{ n_steps }_ne{ 'All' if n_events is None else format(n_events, ',') }.pdf")
+def axis_token(axis: str, value) -> str:
+    """Short token for one grid-axis value (subdir or filename part)."""
+    if axis == "s1phi":
+        return f"s1{ 'T' if value else 'F' }"
+    if axis == "n_events":
+        if value is None:
+            return "neAll"
+        for div, suffix in ( (1_000_000, "M"), (1_000, "k") ):
+            if value % div == 0:
+                return f"ne{ value // div }{ suffix }"
+        return f"ne{ value }"                # Not a round k/M -> full count
+    return { "max_depth": "d", "n_estimators": "nt", "n_steps": "ns" }[axis] + str(value)
+
+
+def output_path(grid_pt: tuple) -> Path:
+    """Relative figure path for one grid point: a subdir per `NEST_BY` axis, the
+    remaining axes joined into the filename (e.g. s1T/ns15/d6_nt100_ne500k.pdf).
+    """
+    values  = dict(zip(AXES, grid_pt))
+    subdirs = [ axis_token(axis, values[axis]) for axis in NEST_BY ]
+    name    = "_".join(axis_token(axis, values[axis])
+                       for axis in AXES if axis not in NEST_BY) + ".pdf"
+    return Path(*subdirs, name)
 
 
 def report(results: list[dict], outdir: Path) -> None:
@@ -124,7 +150,10 @@ def main():  # NB: tqdm.write used instead of print() to preserve progress bar
         figure = plot_histograms(data, samples, n_events = None)
         figure.suptitle(suptitle(grid_pt, size, per_channel, mse), fontsize = 11)
         figure.subplots_adjust(top = 0.86)      # Room for the two-line suptitle
-        figure.savefig(outdir / filename(grid_pt))
+
+        path = outdir / output_path(grid_pt)
+        path.parent.mkdir(parents = True, exist_ok = True)
+        figure.savefig(path)
         plt.close(figure)
 
         results.append({ "combo": grid_pt, "size": size,
