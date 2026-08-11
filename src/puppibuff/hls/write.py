@@ -63,6 +63,8 @@ def ap_types_h(n_channels: int, config: XilinxHLSConfig, accum_precision: str) -
 
 #include "ap_fixed.h"                   // Requires `XILINX_AP_INCLUDE` set
 
+#include <cstddef>                      // size_t
+
 static size_t const n_channels = { n_channels };
 
                                         // BDTs' input/output
@@ -539,7 +541,7 @@ for b in "${blocks[@]}"; do
     ( cd "$b" && "$HLS" -f build_hls.tcl ${opts[@]+"${opts[@]}"} ) >"$b/build.out" 2>&1 &
     pids+=($!)
     names+=("$b")
-    echo "launched $b (pid $!)"
+    echo "Launched $b (pid $!)"
 done
 
 failed=()
@@ -547,13 +549,13 @@ for i in "${!pids[@]}"; do
     if wait "${pids[$i]}"; then
         echo "--- ${names[$i]} done"
     else
-        echo "--- ${names[$i]} FAILED (see ${names[$i]}/build.out)"
+        echo "--- ${names[$i]} FAILED (see blocks/${names[$i]}/build.out)"
         failed+=("${names[$i]}")
     fi
 done
 
 if [ ${#failed[@]} -ne 0 ]; then
-    echo "failed: ${failed[*]}"
+    echo "Failed: ${failed[*]}"
     exit 1
 fi
 echo "built: ${blocks[*]}"
