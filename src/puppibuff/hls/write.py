@@ -29,7 +29,8 @@ def field_name(step: int) -> str:
 
 def _over_all_channels(body: str) -> str:
     """A loop over the channels, unrolled. """
-    return (f"for (size_t idx = 0; idx != n_channels; ++idx) {{\n"
+    return (f"for (size_t idx = 0; idx != n_channels; ++idx)\n"
+             "    {\n"
             f"        #pragma HLS unroll\n"
             f"        {body}\n"
              "    }")
@@ -271,6 +272,7 @@ static accum_t const c2 = { step_size / 2 };
 
 void { STEP_TOP }(accum_arr_t x_in, state_arr_t v, state_arr_t v_prev, accum_arr_t x_out)
 {{
+    #pragma HLS pipeline
 { _partition("x_in", "v", "v_prev", "x_out") }
 
                                         // x = x + c1 * v - c2 * v_prev
@@ -330,7 +332,7 @@ void { SAMPLE_TOP }(accum_arr_t x0, accum_arr_t x_out)
                                         // both alternate over two buffers
     accum_arr_t xa, xb;
     state_arr_t xs, va, vb;
-{ _partition("xa", "xb", "xs", "va", "vb") }
+{ _partition(*x_buffers, "xs", *v_buffers) }
 
 { body }
 

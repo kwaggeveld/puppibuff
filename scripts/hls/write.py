@@ -1,4 +1,4 @@
-from puppibuff.configs import FlatPuppiJetConfig
+from puppibuff.utils import from_zip
 from puppibuff.hls import FlowHLS
 
 import sys
@@ -11,14 +11,8 @@ def main():                             # Pass directory for the HLS project
     else:
         output_dir = "flowhls"
 
-    config = FlatPuppiJetConfig(n_steps = 4,
-                                n_events = 500_000)
-    config.tree_config["n_estimators"] = 20
-    config.tree_config["max_depth"] = 2
-
-    _, _, model, x, y = config.setup()
-
-    model.fit(x, y)
+    _, _, model = from_zip("models/testing_small")
+    
     hls = FlowHLS.convert(model, output_dir = output_dir, merged = MERGED)
     hls.write()
 
