@@ -26,6 +26,7 @@ def main():                             # Pass directory for the HLS project(s)
     model.fit(x, y)
 
     hls = FlowHLS.convert(model, output_dir = workdir, merged = MERGED)
+    hls.write(codec)
     hls.compile(n_threads = 7)
 
     sample = hls.sample(N_HLS)

@@ -11,10 +11,10 @@ def main():                             # Pass directory for the HLS project
     else:
         output_dir = "flowhls"
 
-    _, _, model = from_zip("models/testing_small")
+    _, codec, model = from_zip("models/testing_small")
     
     hls = FlowHLS.convert(model, output_dir = output_dir, merged = MERGED)
-    hls.write()
+    hls.write(codec)
 
 if __name__ == "__main__":
     main()

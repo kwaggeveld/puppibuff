@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from puppibuff.analyses.plotting import plot_histograms
 from puppibuff.configs import FlatPuppiJetConfig
-from puppibuff.hls import FlowHLS, write
+from puppibuff.hls import constants, FlowHLS
 from puppibuff.utils import initial_noise
 
 import sys
@@ -25,7 +25,7 @@ def timed(label: str, call, *args, **kwargs):
     return result
 
 
-def build_hls(model, workdir: str, reuse: bool) -> FlowHLS:
+def build_hls(model, codec, workdir: str, reuse: bool) -> FlowHLS:
     """Convert and compile the grid, or bind an existing build in `workdir`."""
 
     if reuse:                           # `load` reads the layout off `workdir`
@@ -33,6 +33,7 @@ def build_hls(model, workdir: str, reuse: bool) -> FlowHLS:
 
     hls = timed("Converting grid", FlowHLS.convert, model,
                 output_dir = workdir, merged = MERGED)
+    timed("Writing", hls.write, codec)
     timed("Compiling", hls.compile, n_threads = 7)
 
     return hls
@@ -56,7 +57,7 @@ def main():                             # Pass directory for the HLS project(s)
     if not reuse:
         model.fit(x, y)
 
-    hls = build_hls(model, workdir, reuse)
+    hls = build_hls(model, codec, workdir, reuse)
 
     outdir = Path(__file__).resolve().parent / Path(__file__).stem
     outdir.mkdir(exist_ok = True)
@@ -69,12 +70,12 @@ def main():                             # Pass directory for the HLS project(s)
 
     for label, sampler, n_samples in samplers:
                                         # Pinned, not defaulted: the merged design
-                                        # has `write.SAMPLE_SOLVER` compiled into
+                                        # has `constants.SAMPLE_SOLVER` compiled into
                                         # it, so an A/B against XGBoost is only
                                         # apples-to-apples on that same scheme
         sample = timed(f"Sampling {n_samples} with {label}",
                        sampler.sample, x0 = x0[:n_samples],
-                       solver = write.SAMPLE_SOLVER)
+                       solver = constants.SAMPLE_SOLVER)
 
         figure = plot_histograms(
             data, codec.decode(sample), n_events = config.n_events,

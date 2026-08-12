@@ -6,9 +6,12 @@ import os
 
 OUTPUT_DIR = "compile_timings"
 
-def timed_compile(model, output_dir: str, n_threads: int | None) -> float:
-    """Convert `model` into a fresh `output_dir` and time a full compile."""
+def timed_compile(model, codec, output_dir: str, n_threads: int | None) -> float:
+    """Convert and write `model` into a fresh `output_dir`, then time the
+    compile alone.
+    """
     hls = FlowHLS.convert(model, output_dir = output_dir)
+    hls.write(codec)
 
     begin = time()
     hls.compile(n_threads = n_threads)
@@ -20,16 +23,16 @@ def main():
     config.tree_config["n_estimators"] = 20
     config.tree_config["max_depth"] = 2
 
-    _, _, model, x, y = config.setup()
+    _, codec, model, x, y = config.setup()
 
     model.fit(x, y)
 
     print("Compiling with a single thread...")
-    elapsed_single = timed_compile(model, f"{OUTPUT_DIR}_single", n_threads = 1)
+    elapsed_single = timed_compile(model, codec, f"{OUTPUT_DIR}_single", n_threads = 1)
     print("Elapsed time: ", elapsed_single)
 
     print(f"Compiling with {os.cpu_count()} threads...")
-    elapsed_multi = timed_compile(model, f"{OUTPUT_DIR}_multi", n_threads = None)
+    elapsed_multi = timed_compile(model, codec, f"{OUTPUT_DIR}_multi", n_threads = None)
     print("Elapsed time: ", elapsed_multi)
 
 
