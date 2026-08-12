@@ -12,8 +12,9 @@ class MultiplicityCodec(FixedMCodec):
     is encoded to a single scalar channel instead of one `real` flag per slot.
     """
 
-    s_EXPORT_KEYS = (FixedMCodec.s_EXPORT_KEYS
-                        + [ "n_features", "multiplicity", "mult_mean", "mult_std" ])
+    s_EXPORT_KEYS = FixedMCodec.s_EXPORT_KEYS + [ "mult_mean", "mult_std" ]
+
+    s_DECODED = FixedMCodec.s_DECODED + [ "real" ]
 
     def fit(self, data: Dataset) -> None:
         self.check_dataset(data)
@@ -70,4 +71,10 @@ class MultiplicityCodec(FixedMCodec):
             **self._decode_channels(*channels),
             "real": real.astype(np.float32),
         }
+
+
+    def decode_cpp(self) -> str:
+        raise NotImplementedError(
+            "MultiplicityCodec has no HLS decode writer (yet)..."
+        )
 

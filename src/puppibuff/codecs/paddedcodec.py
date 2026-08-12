@@ -14,7 +14,7 @@ class PaddedCodec(FixedMCodec):
     can represent variable multiplicity.
     """
 
-    s_EXPORT_KEYS = FixedMCodec.s_EXPORT_KEYS + [ "n_features", "multiplicity" ]
+    s_DECODED = FixedMCodec.s_DECODED + [ "real" ]
 
     def fit(self, data: Dataset) -> None:
         self.check_dataset(data)
@@ -52,3 +52,9 @@ class PaddedCodec(FixedMCodec):
             **self._decode_channels(*channels),
             "real": (real > 0.5).astype(np.float32),
         }
+
+
+    def decode_cpp(self) -> str:
+        raise NotImplementedError(
+            "PaddedCodec has no HLS decode writer (yet)..."
+        )

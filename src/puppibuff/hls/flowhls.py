@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+from ..codecs import Codec
 from ..flowbdt import FlowBDT
 from ..solvers import ab2_solve, Solver
 from ..utils import initial_noise, t_to_step
+from . import constants as c
 from . import write
 from .compile import compile_grid, compile_flowhls
 from .convert import convert_grid
 from .load import attach_bridge, import_bridge, load_grid
-from .utils import merged_bridge, merged_build, project_paths
+from .utils import block_latency, merged_bridge, merged_build, project_paths
 
+import subprocess
 from pathlib import Path
 from conifer.utils.performance import performance_estimates
 import numpy as np
@@ -33,9 +36,6 @@ class FlowHLS:
     own layout instead, one project per BDT.
     """
 
-    accum_precision = "ap_fixed<32,8>"  # The solver's state, wider than score_t
-
-
 # --- Constructors ---
 
     def __init__(
@@ -51,6 +51,7 @@ class FlowHLS:
 
         self.merged  = merged
         self._bridge = None
+        self._codec: Codec | None  = None
 
 
     @classmethod
@@ -83,6 +84,25 @@ class FlowHLS:
         return hls
 
 
+    @property
+    def codec(self) -> Codec:
+        """The codec `write` was given. Read back off the design when this object
+        is not the one that wrote it, so a converted or loaded grid can decode
+        and write its payload without being handed the codec a second time.
+        """
+        if self._codec is None:
+            saved = self.output_dir / c.CODEC_FILE
+
+            if not saved.exists():
+                raise FileNotFoundError(
+                    f"No codec in { self.output_dir }. Call write(codec) first."
+                )
+
+            self._codec = Codec.from_json(saved)
+
+        return self._codec
+
+
 # --- BDT grid ---
 
     @property
@@ -97,8 +117,8 @@ class FlowHLS:
         """Every HLS project of the merged design. `narrow` is inlined into 
         its callers and the sampler is left to the VHDL, so neither is a block.
         """
-        return ([ write.field_name(step) for step in range(self.n_steps) ]
-                + [ write.STEP_TOP ])
+        return ([ c.FIELD_NAME(step) for step in range(self.n_steps) ]
+                + [ c.STEP_TOP, Codec.s_DECODE_TOP ])
 
 
     @property
@@ -119,8 +139,15 @@ class FlowHLS:
 
 # --- Writing ---
 
-    def write(self) -> None:
-        """Write the grid's HLS project(s): one full design, or one per BDT."""
+    def write(self, codec: Codec) -> None:
+        """Write the grid's HLS project(s): one full design, or one per BDT.
+        The `codec` writes the design's `decode`.
+        """
+        self._codec = codec
+
+        self.output_dir.mkdir(parents = True, exist_ok = True)
+        codec.to_json(self.output_dir / c.CODEC_FILE)
+
         if self.merged:
             self._write_flowhls()
         else:
@@ -130,9 +157,9 @@ class FlowHLS:
     def _hls_project_files(self, cfg) -> Iterator[tuple[str, str]]:
         """Construct the `.tcl` file and source of each block's HLS project."""
         for block in self.blocks:
-            yield f"blocks/{ block }/hls_parameters.tcl", write.hls_parameters_tcl(block, cfg.xilinx_part, cfg.clock_period)
-            yield f"blocks/{ block }/build_hls.tcl",      write.build_hls_tcl()
-            yield f"blocks/{ block }/vivado_synth.tcl",   write.vivado_synth_tcl(block, cfg.xilinx_part)
+            yield f"{ c.BLOCKS_DIR }/{ block }/hls_parameters.tcl", write.hls_parameters_tcl(block, cfg.xilinx_part, cfg.clock_period)
+            yield f"{ c.BLOCKS_DIR }/{ block }/build_hls.tcl",      write.build_hls_tcl()
+            yield f"{ c.BLOCKS_DIR }/{ block }/vivado_synth.tcl",   write.vivado_synth_tcl(block, cfg.xilinx_part)
 
 
     def _save_bdt_data(self) -> None:
@@ -152,16 +179,17 @@ class FlowHLS:
 
         files_to_write = {
             "firmware/bdt_grid/BDT.h":              write.bdt_h(bdt_config.unroll),
-            "firmware/ap_types.h":                  write.ap_types_h(self.n_channels, bdt_config, self.accum_precision,),
+            "firmware/ap_types.h":                  write.ap_types_h(self.n_channels, bdt_config, c.ACCUM_PRECISION, self.codec),
             "firmware/flowhls.h":                   write.flowhls_h(self.n_steps),
-            f"firmware/{ write.STEP_TOP }.cpp":     write.ab2_step_cpp(self.n_steps),
+            f"firmware/{ c.STEP_TOP }.cpp":         write.ab2_step_cpp(self.n_steps),
+            f"firmware/{ Codec.s_DECODE_TOP }.cpp": self.codec.decode_cpp(),
             "firmware/narrow.cpp":                  write.narrow_cpp(),
             "firmware/sample.cpp":                  write.sample_cpp(self.n_steps),
             "bridge.cpp":                           write.bridge_cpp(self.n_steps),
-            "build_all.sh":                         write.build_all_sh(self.blocks),
+            c.BUILD_SCRIPT:                           write.build_all_sh(self.blocks),
 
             **{                         # One source per flow step
-                f"firmware/{ write.field_name(step) }.cpp": write.field_sXX_cpp(step, bdts_in_step)
+                f"firmware/{ c.FIELD_NAME(step) }.cpp": write.field_sXX_cpp(step, bdts_in_step)
                 for step, bdts_in_step in enumerate(self.grouped_names)
             },
 
@@ -179,7 +207,7 @@ class FlowHLS:
             path.write_text(source)
 
                                         # Make script executable
-        (self.output_dir / "build_all.sh").chmod(0o755)
+        (self.output_dir / c.BUILD_SCRIPT).chmod(0o755)
 
         self._save_bdt_data()           # Write all .json files for `cls.load`
 
@@ -187,12 +215,10 @@ class FlowHLS:
 # --- Compiling and building ---
 
     def compile(self, n_threads: int | None = None) -> None:
-        """Compile for emulation. Conifer implements Python bindings for the HLS
-        code. The merged design is one compilation, so `n_threads` applies
-        only to the per-BDT grid (None => all cores).
+        """Compile the written sources for emulation. Conifer implements Python
+        bindings for the HLS code. The merged design is one compilation, so
+        `n_threads` applies only to the per-BDT grid (None => all cores).
         """
-        self.write()
-
         if self.merged:
             compile_flowhls(self.output_dir, self.cpp_sources)
             self.bridge = import_bridge(merged_bridge(self.output_dir))
@@ -203,15 +229,53 @@ class FlowHLS:
                 attach_bridge(model)            # opened it, so re-attach in parent
 
 
-    def build(self, **kwargs) -> list[bool]:
-        """Run HLS synthesis over the per-BDT projects. Needs vitis_hls on PATH."""
-        if self.merged:                 # Every block is its own project, so
-            raise NotImplementedError(  # synthesis is a loop rather than a call
-                f"Synthesise the merged design with `./build_all.sh` "
-                f"in {self.output_dir}"
+    def build(self, *options: str) -> None:
+        """Synthesise the written design. Needs vitis_hls on PATH.
+
+        If a merged design, call `build_all.sh` written by `write()`. Then
+        `options` pass through to each block's `build_hls.tcl`  If a per-
+        BDT design, call `build` on each conifer model.
+        """
+        if not self.merged:
+            self._call_on_grid("build")
+            return
+
+        if not (self.output_dir / c.BUILD_SCRIPT).exists():
+            raise FileNotFoundError(
+                f"Nothing to build in { self.output_dir }, { c.BUILD_SCRIPT } "
+                f"is missing. Call `FlowHLS.write(codec)` first."
             )
 
-        return self._call_on_grid("build", **kwargs)
+        subprocess.run([ f"./{ c.BUILD_SCRIPT }", *options ],
+                       cwd = self.output_dir, check = True)
+
+
+# --- EMP payload ---
+
+    @property
+    def latencies(self) -> dict[str, int]:
+        """Every block's scheduled latency, in clock cycles."""
+        return { block: block_latency(self.output_dir, block)
+                 for block in self.blocks }
+
+
+    def write_payload(self) -> None:
+        """Write the payload that ties the synthesised blocks together.
+
+        Separate from `write` as block latencies are required to construct the
+        script.
+        """
+        if not self.merged:             # The per-BDT layout has no blocks to 
+            raise NotImplementedError(  # tie together
+                "The payload combines a merged design's blocks."
+            )
+
+        (self.output_dir / c.PAYLOAD_FILE).write_text(
+            write.emp_payload_vhd(
+                self.n_steps, self.n_channels, self.latencies,
+                self.bdt_grid[0, 0].config, c.ACCUM_PRECISION, self.codec,
+            )
+        )
 
 
 # --- Sampling ---
@@ -257,9 +321,9 @@ class FlowHLS:
         x0 = initial_noise(n_samples, self.n_channels, x0)
 
         if self.merged:
-            if solver is not write.SAMPLE_SOLVER:
+            if solver is not c.SAMPLE_SOLVER:
                 raise NotImplementedError(
-                    f"This merged design has {write.SAMPLE_SOLVER.__name__} "
+                    f"This merged design has {c.SAMPLE_SOLVER.__name__} "
                     f"compiled into it, so it cannot sample with "
                     f"{solver.__name__}: pass that solver instead or use "
                     f"merged = False."

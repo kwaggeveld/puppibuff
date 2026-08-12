@@ -18,7 +18,11 @@ class FixedMCodec(Codec):
     s_EXPORT_KEYS = [ channel + "_" + attr
                       for channel in ( "pt", "eta", "phi" )
                       for attr    in ( "mean", "std", "min", "max" )] \
-                    + [ "s1phi" ]
+                    + [ "s1phi", "n_features", "multiplicity" ]
+
+    s_DECODED = [ "pt", "eta", "phi" ]  # What `decode` returns, per slot
+
+    s_FRACTION_BITS = 12                # Decoded outputs' fractional precision
 
 
     def check_dataset(self, data: Dataset) -> None:
@@ -73,6 +77,88 @@ class FixedMCodec(Codec):
     def group_sizes(self) -> list[int]:
         """One block of size `M` for each feature"""
         return [self.multiplicity] * self.n_features
+
+
+    @property
+    def n_decoded(self) -> int:
+        """Every decoded channel, for every slot."""
+        return len(self.s_DECODED) * self.multiplicity
+
+
+    @property
+    def decoded_precision(self) -> str:
+        """An `ap_fixed` covering every decoded channel's observed range."""
+        largest = max(abs(self.pt_min),  abs(self.pt_max),
+                      abs(self.eta_min), abs(self.eta_max),
+                      np.pi)            # phi wraps to [-pi, pi)
+
+        integer = int(np.ceil(np.log2(largest))) + 1        # Plus a sign bit
+
+        return f"ap_fixed<{ integer + self.s_FRACTION_BITS }, { integer }>"
+
+
+    def decode_cpp(self) -> str:
+        if self.s1phi:                  # `_decode_channels` reaches for arctan2
+            raise NotImplementedError(
+                "`decode_cpp` cannot emit the s1phi (sin, cos) decoding of phi. "
+                "Fit the codec with s1phi = False."
+            )
+
+        return f"""#include "flowhls.h"
+
+#include <cmath>
+                                        // Slots per event
+static size_t const multiplicity = { self.multiplicity };
+
+                                        // Fitted statistics
+static float const pt_mean  = { self.pt_mean };
+static float const pt_std   = { self.pt_std };
+static float const eta_mean = { self.eta_mean };
+static float const eta_std  = { self.eta_std };
+static float const phi_mean = { self.phi_mean };
+static float const phi_std  = { self.phi_std };
+                                        // Observed ranges
+static float const pt_min  = { self.pt_min };
+static float const pt_max  = { self.pt_max };
+static float const eta_min = { self.eta_min };
+static float const eta_max = { self.eta_max };
+
+static float const pi     = { np.pi };
+static float const two_pi = { 2 * np.pi };
+
+inline float clip(float value, float low, float high)
+{{
+    #pragma HLS inline
+    return value < low ? low : (value > high ? high : value);
+}}
+
+inline float wrap_phi(float phi)
+{{
+    #pragma HLS inline
+                                        // (phi + pi) % 2pi - pi
+    return phi - two_pi * std::floor((phi + pi) / two_pi);
+}}
+
+void { self.s_DECODE_TOP }(accum_arr_t x, decoded_arr_t decoded)
+{{
+    #pragma HLS pipeline
+    #pragma HLS array_partition variable=x
+    #pragma HLS array_partition variable=decoded
+
+    for (size_t slot = 0; slot != multiplicity; ++slot)
+    {{
+        #pragma HLS unroll
+        float const pt  = std::exp(x[slot].to_float() * pt_std + pt_mean) - 1.;
+        float const eta = x[multiplicity + slot].to_float() * eta_std + eta_mean;
+        float const phi = x[2 * multiplicity + slot].to_float() * phi_std + phi_mean;
+
+        decoded[slot]                    = clip(pt,  pt_min,  pt_max);
+        decoded[multiplicity + slot]     = clip(eta, eta_min, eta_max);
+        decoded[2 * multiplicity + slot] = wrap_phi(phi);
+    }}
+}}
+
+"""
 
 
     def _fit_stats(self, pt: NDArray, eta: NDArray, phi: NDArray) -> None:

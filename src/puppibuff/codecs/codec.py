@@ -4,6 +4,7 @@ from ..datasets import Dataset
 
 from abc import ABC, abstractmethod
 import json
+from pathlib import Path
 
 from numpy.typing import NDArray
 
@@ -11,6 +12,8 @@ from numpy.typing import NDArray
 
 class Codec(ABC):
     s_EXPORT_KEYS: list[str]
+
+    s_DECODE_TOP = "decode"             # `decode_cpp`'s HLS top function
 
     def __init__(self, s1phi: bool = False) -> None:  # Agrees with Config.s1phi
         self.s1phi = s1phi
@@ -37,15 +40,38 @@ class Codec(ABC):
     def group_sizes(self) -> list[int]:
         ...
 
+# --- HLS export ---
+
+    @property
+    @abstractmethod
+    def n_decoded(self) -> int:
+        """How many values `decode` returns per event, i.e. how many output
+        links the FPGA design needs.
+        """
+        ...
+
+    @property
+    @abstractmethod
+    def decoded_precision(self) -> str:
+        """The `ap_fixed` type for decoded events"""
+        ...
+
+    @abstractmethod
+    def decode_cpp(self) -> str:
+        """Write `firmware/decode.cpp`: the HLS block that decodes sampled events
+        from normalised space.
+        """
+        ...
+
 # --- Export/import ---
 
-    def to_json(self, path: str) -> None:
+    def to_json(self, path: Path | str) -> None:
         with open(path, "w") as file:
             json.dump({ "codec_cls": type(self).__name__ }
                       | { key: getattr(self, key) for key in self.s_EXPORT_KEYS }, file)
 
     @classmethod
-    def from_json(cls, path: str) -> Codec:
+    def from_json(cls, path: Path | str) -> Codec:
         from .. import codecs            # Deferred to prevent circular import
 
         with open(path) as f:

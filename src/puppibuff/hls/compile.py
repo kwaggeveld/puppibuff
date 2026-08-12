@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from .utils import BRIDGE_MODULE, bridge_path
+from . import constants as c
+from .utils import bridge_path
 
 from os import cpu_count, environ, system
 from pathlib import Path
@@ -72,7 +73,7 @@ def compile_flowhls(output_dir: Path, files: list[str]) -> None:
     command = (f"cd { output_dir } && "
                f"{CXX} -O3 -shared -std=c++14 -fPIC "       # Matching conifer
                f"$({ _py_executable() } -m pybind11 --includes) { ap_include } { _gcc_opts() } "
-               f"bridge.cpp { ' '.join(files) } -o { bridge_path('.', BRIDGE_MODULE) }")
+               f"bridge.cpp { ' '.join(files) } -o { bridge_path('.', c.BRIDGE_MODULE) }")
 
     if system(command) != 0:
         raise RuntimeError(f"Failed to compile merged project in { output_dir }")
