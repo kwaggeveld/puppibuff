@@ -807,7 +807,7 @@ for b in "${blocks[@]}"; do
     ( cd "$b" && "$HLS" -f build_hls.tcl ${opts[@]+"${opts[@]}"} ) >"$b/build.out" 2>&1 &
     pids+=($!)
     names+=("$b")
-    echo "Launched $b (pid $!)"
+    echo "[$(date +"%H:%M:%S")] Launched $b (pid $!)"
 done
 
 failed=()
