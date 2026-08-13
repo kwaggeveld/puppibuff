@@ -106,7 +106,12 @@ class FixedMCodec(Codec):
 
         return f"""#include "flowhls.h"
 
-#include <cmath>
+#ifdef __SYNTHESIS__                    // Defined by Vitis HLS when synthesising:
+    #include "hls_math.h"               // https://docs.amd.com/r/en-US/ug1399-vitis-hls/System-Calls
+#else                                   // but normally `hls_math` is unavailable
+    #include <cmath>                    // so fallback
+    namespace hls = std;
+#endif
                                         // Slots per event
 static size_t const multiplicity = { self.multiplicity };
 
@@ -125,6 +130,9 @@ static float const eta_max = { self.eta_max };
 
 static float const pi     = { np.pi };
 static float const two_pi = { 2 * np.pi };
+                                        // A reciprocal multiply, since a float
+                                        // divide costs far more on the fabric
+static float const inv_two_pi = { 1 / (2 * np.pi) };
 
 inline float clip(float value, float low, float high)
 {{
@@ -136,7 +144,7 @@ inline float wrap_phi(float phi)
 {{
     #pragma HLS inline
                                         // (phi + pi) % 2pi - pi
-    return phi - two_pi * std::floor((phi + pi) / two_pi);
+    return phi - two_pi * hls::floor((phi + pi) * inv_two_pi);
 }}
 
 void { self.s_DECODE_TOP }(accum_arr_t x, decoded_arr_t decoded)
@@ -145,16 +153,16 @@ void { self.s_DECODE_TOP }(accum_arr_t x, decoded_arr_t decoded)
     #pragma HLS array_partition variable=x
     #pragma HLS array_partition variable=decoded
 
-    for (size_t slot = 0; slot != multiplicity; ++slot)
+    for (size_t idx = 0; idx != multiplicity; ++idx)
     {{
         #pragma HLS unroll
-        float const pt  = std::exp(x[slot].to_float() * pt_std + pt_mean) - 1.;
-        float const eta = x[multiplicity + slot].to_float() * eta_std + eta_mean;
-        float const phi = x[2 * multiplicity + slot].to_float() * phi_std + phi_mean;
+        float const pt  = hls::expm1(x[idx].to_float() * pt_std + pt_mean);
+        float const eta = x[multiplicity + idx].to_float() * eta_std + eta_mean;
+        float const phi = x[2 * multiplicity + idx].to_float() * phi_std + phi_mean;
 
-        decoded[slot]                    = clip(pt,  pt_min,  pt_max);
-        decoded[multiplicity + slot]     = clip(eta, eta_min, eta_max);
-        decoded[2 * multiplicity + slot] = wrap_phi(phi);
+        decoded[idx]                    = clip(pt,  pt_min,  pt_max);
+        decoded[multiplicity + idx]     = clip(eta, eta_min, eta_max);
+        decoded[2 * multiplicity + idx] = wrap_phi(phi);
     }}
 }}
 
