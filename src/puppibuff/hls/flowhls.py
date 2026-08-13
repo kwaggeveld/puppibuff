@@ -335,6 +335,25 @@ class FlowHLS:
         return solver(self.predict, x0, self.n_steps)
 
 
+    def decode(self, out: NDArray) -> dict[str, NDArray]:
+        """Decode a sample through the design's own `decode` HLS block."""
+        if not self.merged:             # The per-BDT layout is BDTs only, with
+            raise NotImplementedError(  # no decode block to run
+                "A per-BDT layout has no `decode` HLS block, "
+                "so decode with the `Codec` itself."
+            )
+
+        codec = self.codec
+                                        # One channel-major row per event
+        decoded = (np.array(self.bridge.decode(_as_flat_f64(out)))
+                       .reshape(len(out), len(codec.s_DECODED), codec.multiplicity))
+
+        if codec.multiplicity == 1:     # If flat data, drop the slot axis
+            decoded = decoded[..., 0]
+
+        return dict(zip(codec.s_DECODED, np.moveaxis(decoded, 1, 0)))
+
+
 # --- Resources ---
 
     def resource_estimates(self) -> dict[str, int]:

@@ -12,8 +12,11 @@ from numpy.typing import NDArray
 
 class Codec(ABC):
     s_EXPORT_KEYS: list[str]
+    s_DECODED: list[str]                # The channels `decode` returns
 
     s_DECODE_TOP = "decode"             # `decode_cpp`'s HLS top function
+
+    multiplicity: int                   # Slots per event
 
     def __init__(self, s1phi: bool = False) -> None:  # Agrees with Config.s1phi
         self.s1phi = s1phi

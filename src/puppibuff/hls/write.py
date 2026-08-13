@@ -347,7 +347,7 @@ def bridge_cpp(n_steps: int) -> str:
     """Emit the pybind11 bridge. Unlike conifer's, which takes one sample and is
     looped over from Python, this takes a whole batch and loops in C++.
     """
-    cases = '\n'.join(" " * 8 + f"case { step }: { c.FIELD_NAME(step) }(xt, vt); break;"
+    cases = '\n'.join(" " * 12 + f"case { step }: { c.FIELD_NAME(step) }(xt, vt); break;"
                       for step in range(n_steps))
 
     return f"""#include "firmware/ap_types.h"
@@ -605,7 +605,7 @@ def emp_payload_vhd(
     codec: Codec,
 ) -> str:
     """Tie the synthesised blocks together into a VHDL script for the emp-fwk,
-    like `sample_cpp` does into C++ for simulation. 
+    like `sample_cpp` does into C++ for emulation. 
 
     Every block is free-running and fully pipelined, so the design is one long
     pipeline. Each signal needs to be held until the block reading it

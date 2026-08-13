@@ -130,8 +130,6 @@ static float const eta_max = { self.eta_max };
 
 static float const pi     = { np.pi };
 static float const two_pi = { 2 * np.pi };
-                                        // A reciprocal multiply, since a float
-                                        // divide costs far more on the fabric
 static float const inv_two_pi = { 1 / (2 * np.pi) };
 
 inline float clip(float value, float low, float high)
