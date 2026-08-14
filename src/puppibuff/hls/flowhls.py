@@ -124,11 +124,10 @@ class FlowHLS:
     @property
     def cpp_sources(self) -> list[str]:
         """The design's translation units, for `compile`. The blocks' own, plus
-        the two that only the emulated design compiles: `narrow` is inlined by
-        HLS and `sample` is the VHDL top's C++ reference.
+        `sample` for emulation.
         """
         return ([ f"firmware/{ block }.cpp" for block in self.blocks ]
-                + [ "firmware/narrow.cpp", "firmware/sample.cpp" ])
+                + [ "firmware/sample.cpp" ])
 
 
     def _call_on_grid(self, method: str, **kwargs) -> list:
@@ -183,7 +182,6 @@ class FlowHLS:
             "firmware/flowhls.h":                   write.flowhls_h(self.n_steps),
             f"firmware/{ c.STEP_TOP }.cpp":         write.ab2_step_cpp(self.n_steps),
             f"firmware/{ Codec.s_DECODE_TOP }.cpp": self.codec.decode_cpp(),
-            "firmware/narrow.cpp":                  write.narrow_cpp(),
             "firmware/sample.cpp":                  write.sample_cpp(self.n_steps),
             "bridge.cpp":                           write.bridge_cpp(self.n_steps),
             c.BUILD_SCRIPT:                           write.build_all_sh(self.blocks),

@@ -187,10 +187,6 @@ def ab2_step_cpp(n_steps: int) -> str:
     )
 
 
-def narrow_cpp() -> str:
-    return _template("narrow.cpp")
-
-
 def sample_cpp(n_steps: int) -> str:
     """Unroll `solvers.ab2_solve` over the grid.
 
