@@ -24,11 +24,7 @@ class FixedMCodec(Codec):
 
     s_FRACTION_BITS = 12                # Decoded outputs' fractional precision
 
-    s_EXPM1_FRAC_BITS = 8               # `expm1` table entries per unit of
-                                        # log1p(pt). A bin's width in that space
-                                        # is the relative error in pt, so this
-                                        # is 0.39% -- just under the BDTs' own
-                                        # ap_fixed truncation bias (0.4 - 1.1%).
+    s_EXPM1_FRAC_BITS = 8               # `expm1` table entries per unit of log1p(pt)
 
 
     def check_dataset(self, data: Dataset) -> None:
@@ -119,8 +115,25 @@ class FixedMCodec(Codec):
         return int(np.ceil(np.log1p(self.pt_max) * self.expm1_scaling))
 
 
+    @property
+    def expm1_table(self) -> str:
+        """Compute the `expm1` table's entries, format as C++ initialiser list."""
+                                        # Bottom clipped to pt_min, the top is
+        entries = np.maximum(           # within a bin of pt_max by construction
+            np.expm1(np.arange(self.expm1_table_size) / self.expm1_scaling),
+            self.pt_min,
+        )
+
+        per_line = 6
+        return "\n".join(
+            "    " + " ".join(f"{ entry :.6f}," for entry in row)
+            for row in (entries[idx : idx + per_line]
+                        for idx in range(0, len(entries), per_line))
+        )
+
+
     def decode_cpp(self) -> str:
-        if self.s1phi:                  # `_decode_channels` reaches for arctan2
+        if self.s1phi:                  # `_decode_channels` needs arctan2
             raise NotImplementedError(
                 "`decode_cpp` cannot emit the s1phi (sin, cos) decoding of phi. "
                 "Fit the codec with s1phi = False."
@@ -128,12 +141,6 @@ class FixedMCodec(Codec):
 
         return f"""#include "flowhls.h"
 
-#ifdef __SYNTHESIS__                    // Defined by Vitis HLS when synthesising:
-    #include "hls_math.h"               // https://docs.amd.com/r/en-US/ug1399-vitis-hls/System-Calls
-#else                                   // but normally `hls_math` is unavailable
-    #include <cmath>                    // so fallback
-    namespace hls = std;
-#endif
                                         // Slots per event
 static size_t const multiplicity = { self.multiplicity };
 
@@ -147,43 +154,25 @@ static accum_t   const phi_mean = { self.phi_mean / (2 * np.pi) };
 static accum_t   const phi_std  = { self.phi_std / (2 * np.pi) };
 
                                         // Observed ranges.
-static float     const pt_min  = { self.pt_min };   // Read only by table fill -> float
 static decoded_t const eta_min = { self.eta_min };
 static decoded_t const eta_max = { self.eta_max };
 
 static decoded_t const two_pi = { 2 * np.pi };
 
-// Lookup table design adapted from: 
+// Lookup table design adapted from:
 // https://github.com/fastmachinelearning/hls4ml/blob/main/hls4ml/templates/vivado/nnet_utils/nnet_activation.h
-static size_t const expm1_scaling    = 256;
-static size_t const expm1_table_size = 1783;
+static size_t const expm1_scaling    = { self.expm1_scaling };
+static size_t const expm1_table_size = { self.expm1_table_size };
 
-void init_expm1_table(decoded_t table[expm1_table_size])
-{{                                       // Fill table idx-by-idx
-    for (size_t idx = 0; idx != expm1_table_size; ++idx)
-    {{                                   // Convert idx -> X-value
-        float in_val = idx / float{{ expm1_scaling }};
-                                        // Clip minimum table entry to pt_min
-        table[idx] = hls::fmax(hls::expm1(in_val), pt_min);
-    }}
-}}
+                                        // Entry idx is expm1(idx / expm1_scaling), 
+                                        // floored at pt_min.
+static decoded_t const expm1_table[expm1_table_size] = {{
+{ self.expm1_table }
+}};
 
 inline decoded_t expm1_lookup(accum_t value)
 {{
     #pragma HLS inline
-#ifdef __HLS_SYN__
-    bool initialised = false;
-    decoded_t expm1_table[expm1_table_size];
-#else                                   // Make the table static if emulating, so
-    static bool initialised = false;    // that it's shared over multiple calls
-    static decoded_t expm1_table[expm1_table_size];
-#endif
-    if (!initialised)
-    {{
-        init_expm1_table(expm1_table);
-        initialised = true;
-    }}
-
     int table_index = value * expm1_scaling;
 
     if (table_index < 0)
