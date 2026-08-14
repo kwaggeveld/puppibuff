@@ -142,19 +142,18 @@ static accum_t   const pt_mean  = { self.pt_mean };
 static accum_t   const pt_std   = { self.pt_std };
 static decoded_t const eta_mean = { self.eta_mean };
 static decoded_t const eta_std  = { self.eta_std };
-static float     const phi_mean = { self.phi_mean }; // Wrap still needs float atm
-static float     const phi_std  = { self.phi_std };
+                                        // phi's, in turns rather than radians
+static accum_t   const phi_mean = { self.phi_mean / (2 * np.pi) };
+static accum_t   const phi_std  = { self.phi_std / (2 * np.pi) };
 
                                         // Observed ranges.
 static float     const pt_min  = { self.pt_min };   // Read only by table fill -> float
 static decoded_t const eta_min = { self.eta_min };
 static decoded_t const eta_max = { self.eta_max };
 
-static float const pi     = { np.pi };
-static float const two_pi = { 2 * np.pi };
-static float const inv_two_pi = { 1 / (2 * np.pi) };
+static decoded_t const two_pi = { 2 * np.pi };
 
-// Adapted from: 
+// Lookup table design adapted from: 
 // https://github.com/fastmachinelearning/hls4ml/blob/main/hls4ml/templates/vivado/nnet_utils/nnet_activation.h
 static size_t const expm1_scaling    = 256;
 static size_t const expm1_table_size = 1783;
@@ -202,11 +201,17 @@ inline decoded_t clip(decoded_t value, decoded_t low, decoded_t high)
            value > high ? high : value;
 }}
 
-inline float wrap_phi(float phi)
+                                        // `phi` is in unit of turns, not radians. 
+                                        // With zero integer bits we have a range
+                                        // of [-0.5, 0.5]. We can then use overflow 
+                                        // acting as wrapping.
+using turns_t = ap_fixed<{ self.s_FRACTION_BITS + 4 }, 0>;  // 4 > log2(2pi)
+
+inline decoded_t wrap_phi(accum_t value)
 {{
-    #pragma HLS inline
-                                        // (phi + pi) % 2pi - pi
-    return phi - two_pi * hls::floor((phi + pi) * inv_two_pi);
+    #pragma HLS inline                  // Narrowing wraps back to [-0.5, 0.5]
+    turns_t const turns = value * phi_std + phi_mean;
+    return turns * two_pi;
 }}
 
 void { self.s_DECODE_TOP }(accum_arr_t x, decoded_arr_t decoded)
@@ -220,11 +225,11 @@ void { self.s_DECODE_TOP }(accum_arr_t x, decoded_arr_t decoded)
         #pragma HLS unroll
         decoded_t const pt  = expm1_lookup(x[idx] * pt_std + pt_mean);
         decoded_t const eta = x[multiplicity + idx] * eta_std + eta_mean;
-        float     const phi = x[2 * multiplicity + idx].to_float() * phi_std + phi_mean;
+        decoded_t const phi = wrap_phi(x[2 * multiplicity + idx]);
 
         decoded[idx]                    = pt;           // The LUT clips
         decoded[multiplicity + idx]     = clip(eta, eta_min, eta_max);
-        decoded[2 * multiplicity + idx] = wrap_phi(phi);
+        decoded[2 * multiplicity + idx] = phi;          // `wrap_phi` rescales
     }}
 }}
 
