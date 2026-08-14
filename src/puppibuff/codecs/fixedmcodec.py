@@ -24,6 +24,12 @@ class FixedMCodec(Codec):
 
     s_FRACTION_BITS = 12                # Decoded outputs' fractional precision
 
+    s_EXPM1_FRAC_BITS = 8               # `expm1` table entries per unit of
+                                        # log1p(pt). A bin's width in that space
+                                        # is the relative error in pt, so this
+                                        # is 0.39% -- just under the BDTs' own
+                                        # ap_fixed truncation bias (0.4 - 1.1%).
+
 
     def check_dataset(self, data: Dataset) -> None:
         super().check_dataset(data)     # Asserts type
@@ -97,6 +103,22 @@ class FixedMCodec(Codec):
         return f"ap_fixed<{ integer + self.s_FRACTION_BITS }, { integer }>"
 
 
+    @property
+    def expm1_scaling(self) -> int:
+        """`expm1` table entries per unit of log1p(pt). Used to convert value 
+        <-> table idx. idx / scale in the init, value * scale in the lookup.
+        """
+        return 1 << self.s_EXPM1_FRAC_BITS
+
+
+    @property
+    def expm1_table_size(self) -> int:
+        """Enough `expm1` entries to reach log1p(pt_max) given the scaling,
+        so that clamping the index saturates at the observed range.
+        """
+        return int(np.ceil(np.log1p(self.pt_max) * self.expm1_scaling))
+
+
     def decode_cpp(self) -> str:
         if self.s1phi:                  # `_decode_channels` reaches for arctan2
             raise NotImplementedError(
@@ -115,27 +137,69 @@ class FixedMCodec(Codec):
                                         // Slots per event
 static size_t const multiplicity = { self.multiplicity };
 
-                                        // Fitted statistics
-static float const pt_mean  = { self.pt_mean };
-static float const pt_std   = { self.pt_std };
-static float const eta_mean = { self.eta_mean };
-static float const eta_std  = { self.eta_std };
-static float const phi_mean = { self.phi_mean };
-static float const phi_std  = { self.phi_std };
-                                        // Observed ranges
-static float const pt_min  = { self.pt_min };
-static float const pt_max  = { self.pt_max };
-static float const eta_min = { self.eta_min };
-static float const eta_max = { self.eta_max };
+                                        // Fitted statistics. 
+static accum_t   const pt_mean  = { self.pt_mean };
+static accum_t   const pt_std   = { self.pt_std };
+static decoded_t const eta_mean = { self.eta_mean };
+static decoded_t const eta_std  = { self.eta_std };
+static float     const phi_mean = { self.phi_mean }; // Wrap still needs float atm
+static float     const phi_std  = { self.phi_std };
+
+                                        // Observed ranges.
+static float     const pt_min  = { self.pt_min };   // Read only by table fill -> float
+static decoded_t const eta_min = { self.eta_min };
+static decoded_t const eta_max = { self.eta_max };
 
 static float const pi     = { np.pi };
 static float const two_pi = { 2 * np.pi };
 static float const inv_two_pi = { 1 / (2 * np.pi) };
 
-inline float clip(float value, float low, float high)
+// Adapted from: 
+// https://github.com/fastmachinelearning/hls4ml/blob/main/hls4ml/templates/vivado/nnet_utils/nnet_activation.h
+static size_t const expm1_scaling    = 256;
+static size_t const expm1_table_size = 1783;
+
+void init_expm1_table(decoded_t table[expm1_table_size])
+{{                                       // Fill table idx-by-idx
+    for (size_t idx = 0; idx != expm1_table_size; ++idx)
+    {{                                   // Convert idx -> X-value
+        float in_val = idx / float{{ expm1_scaling }};
+                                        // Clip minimum table entry to pt_min
+        table[idx] = hls::fmax(hls::expm1(in_val), pt_min);
+    }}
+}}
+
+inline decoded_t expm1_lookup(accum_t value)
 {{
     #pragma HLS inline
-    return value < low ? low : (value > high ? high : value);
+#ifdef __HLS_SYN__
+    bool initialised = false;
+    decoded_t expm1_table[expm1_table_size];
+#else                                   // Make the table static if emulating, so
+    static bool initialised = false;    // that it's shared over multiple calls
+    static decoded_t expm1_table[expm1_table_size];
+#endif
+    if (!initialised)
+    {{
+        init_expm1_table(expm1_table);
+        initialised = true;
+    }}
+
+    int table_index = value * expm1_scaling;
+
+    if (table_index < 0)
+        table_index = 0;
+    else if (table_index > int(expm1_table_size) - 1)
+        table_index = expm1_table_size - 1;
+
+    return expm1_table[table_index];
+}}
+
+inline decoded_t clip(decoded_t value, decoded_t low, decoded_t high)
+{{
+    #pragma HLS inline
+    return value < low  ? low  :
+           value > high ? high : value;
 }}
 
 inline float wrap_phi(float phi)
@@ -154,11 +218,11 @@ void { self.s_DECODE_TOP }(accum_arr_t x, decoded_arr_t decoded)
     for (size_t idx = 0; idx != multiplicity; ++idx)
     {{
         #pragma HLS unroll
-        float const pt  = hls::expm1(x[idx].to_float() * pt_std + pt_mean);
-        float const eta = x[multiplicity + idx].to_float() * eta_std + eta_mean;
-        float const phi = x[2 * multiplicity + idx].to_float() * phi_std + phi_mean;
+        decoded_t const pt  = expm1_lookup(x[idx] * pt_std + pt_mean);
+        decoded_t const eta = x[multiplicity + idx] * eta_std + eta_mean;
+        float     const phi = x[2 * multiplicity + idx].to_float() * phi_std + phi_mean;
 
-        decoded[idx]                    = clip(pt,  pt_min,  pt_max);
+        decoded[idx]                    = pt;           // The LUT clips
         decoded[multiplicity + idx]     = clip(eta, eta_min, eta_max);
         decoded[2 * multiplicity + idx] = wrap_phi(phi);
     }}
