@@ -258,7 +258,7 @@ def vivado_synth_tcl(block: str, part: str) -> str:
 
 #--- Writers: EMP payload ---
 
-def _ap_fixed(precision: str) -> tuple[int, int]:
+def _ap_fixed_widths(precision: str) -> tuple[int, int]:
     """Extract (word, integer) bit widths of an `ap_fixed<word, integer>`."""
     match = re.fullmatch(r"ap_fixed<\s*(\d+)\s*,\s*(\d+)\s*>", precision)
 
@@ -286,6 +286,32 @@ def _instance(entity: str, ports: str, suffix: str = "") -> str:
   );
 """
 
+                                        # The three signal families:
+def _accum(step: int)    -> str: return f"x{ step :02d}"    # Accumulator
+def _narrowed(step: int) -> str: return f"s{ step :02d}_d"  # BDT inputs
+def _velocity(step: int) -> str: return f"s{ step :02d}_q"  # BDT outputs
+
+
+def _link_widths(
+    config: XilinxHLSConfig, accum_precision: str, codec: Codec
+) -> tuple[int, int, int]:
+    """The `ap_fixed` word widths the payload slices its links at.
+
+    `narrow` is a plain slice of the accumulator's leading bits, which only
+    holds if the state and the accumulator share an integer width.
+    """
+    state_width, state_int = _ap_fixed_widths(config.input_precision)           # type: ignore
+    accum_width, accum_int = _ap_fixed_widths(accum_precision)
+    decoded_width, _       = _ap_fixed_widths(codec.decoded_precision)
+
+    if state_int != accum_int:
+        raise ValueError(
+            f"`state_t` and `accum_t` must have equal integer width. Received "
+            f"widths { config.input_precision } and { accum_precision }."       # type: ignore
+        )
+
+    return state_width, accum_width, decoded_width
+
 
 def emp_payload_vhd(
     n_steps: int,
@@ -302,15 +328,9 @@ def emp_payload_vhd(
     pipeline. Each signal needs to be held until the block reading it
     catches up; these latencies are from  `utils.block_latency`.
     """
-    state_width, state_int = _ap_fixed(config.input_precision)                # type: ignore
-    accum_width, accum_int = _ap_fixed(accum_precision)
-    decoded_width, _       = _ap_fixed(codec.decoded_precision)
-
-    if state_int != accum_int:          # `narrow` is then a plain slice of
-        raise ValueError(               # the accumulator's leading bits
-            f"`state_t` and `accum_t` must share an integer width. Received widths "
-            f"{ config.input_precision } and { accum_precision }."
-        )
+    state_width, accum_width, decoded_width = _link_widths(
+        config, accum_precision, codec
+    )
                                         # ab2 never evaluates the field at t = 1
     steps         = range(n_steps - 1)
     field_latency = [ latencies[c.FIELD_NAME(step)] for step in steps ]
@@ -322,38 +342,38 @@ def emp_payload_vhd(
     hold = [ ab2_latency + field_latency[step + 1] if step + 1 in steps else 0
              for step in steps ]
 
-                                        # The first interval has no history, so
-                                        # v_prev = v: Euler step
-    v_prev = [ f"s{ step :02d}_q(0)" if step == 0 else
-               f"s{ step - 1 :02d}_q(HOLD({ step - 1 }))" for step in steps ]
-
-    x_out  = [ "x_out" if step == steps[-1] else f"x{ step + 1 :02d}(0)"
-               for step in steps ]
-
     hrule = "  " + "-" * 74             # Also literal in `emp_payload.vhd`
 
-    instance_list = [
-        f"""{ hrule }
+    def _step_block(step: int) -> str:
+        """One step's pair of instances: its field, then the solver reading it."""
+                                        # The first interval has no history, so
+                                        # v_prev = v: Euler step
+        v_prev = (f"{ _velocity(step) }(0)" if step == 0 else
+                  f"{ _velocity(step - 1) }(HOLD({ step - 1 }))")
+
+        x_out = "x_out" if step == steps[-1] else f"{ _accum(step + 1) }(0)"
+
+        field = _instance(c.FIELD_NAME(step),
+                          _port_map(n_channels, x = _narrowed(step),
+                                                v = f"{ _velocity(step) }(0)"))
+
+        solver = _instance(c.STEP_TOP,
+                           _port_map(n_channels,
+                                     x_in   = f"{ _accum(step) }(FIELD_LATENCY({ step }))",
+                                     v      = f"{ _velocity(step) }(0)",
+                                     v_prev = v_prev,
+                                     x_out  = x_out),
+                           suffix = f"_{ step :02d}")
+
+        return f"""{ hrule }
   -- Step { step :02d}
 
   -- Field block
-{ 
-    _instance(c.FIELD_NAME(step), _port_map(n_channels, x = f"s{ step :02d}_d", 
-                                                        v = f"s{ step :02d}_q(0)")) 
-}
+{ field }
 
   -- Sampler step block
-{ 
-    _instance(c.STEP_TOP, _port_map(n_channels, 
-                                    x_in   = f"x{ step :02d}(FIELD_LATENCY({ step }))",
-                                    v      = f"s{ step :02d}_q(0)",
-                                    v_prev = v_prev[step],
-                                    x_out  = x_out[step]), 
-              f"_{ step :02d}") 
-}
-"""      
-        for step in steps
-    ]   # instance_list
+{ solver }
+"""
 
     channels = f"0 to { n_channels - 1 }"
     total    = sum(field_latency) + len(steps) * ab2_latency + latencies[Codec.s_DECODE_TOP]
@@ -385,33 +405,34 @@ def emp_payload_vhd(
         out_base     = c.OUT_BASE,
 
         declarations = '\n'.join(
-            f"  signal x{ step :02d}   : accum_arr2d(0 to FIELD_LATENCY({ step }))({ channels });\n"
-            f"  signal s{ step :02d}_d : state_arr1d({ channels });\n"
-            f"  signal s{ step :02d}_q : state_arr2d(0 to HOLD({ step }))({ channels });\n"
+            f"  signal { _accum(step) }   : accum_arr2d(0 to FIELD_LATENCY({ step }))({ channels });\n"
+            f"  signal { _narrowed(step) } : state_arr1d({ channels });\n"
+            f"  signal { _velocity(step) } : state_arr2d(0 to HOLD({ step }))({ channels });\n"
             for step in steps
         ),
         inputs = '\n'.join(
-            f"  x00(0)({ idx }) <= d({ c.IN_BASE + idx }).data({ accum_width - 1 } downto 0);"
+            f"  { _accum(0) }(0)({ idx }) <= d({ c.IN_BASE + idx }).data({ accum_width - 1 } downto 0);"
             for idx in range(n_channels)
         ),
         outputs = '\n'.join(
             f"  q({ c.OUT_BASE + idx }).data({ decoded_width - 1 } downto 0) <= decoded({ idx });"
             for idx in range(codec.n_decoded)
         ),
+                                        # A zero-cycle block needs no pipeline
         pipes = '\n'.join(
-            [ f"      x{ step :02d}(1 to FIELD_LATENCY({ step })) <= "
-              f"x{ step :02d}(0 to FIELD_LATENCY({ step }) - 1);"
-              for step in steps if field_latency[step] ]    # A zero-cycle block needs no pipeline
-          + [ f"      s{ step :02d}_q(1 to HOLD({ step })) <= "
-              f"s{ step :02d}_q(0 to HOLD({ step }) - 1);"
+            [ f"      { _accum(step) }(1 to FIELD_LATENCY({ step })) <= "
+              f"{ _accum(step) }(0 to FIELD_LATENCY({ step }) - 1);"
+              for step in steps if field_latency[step] ]
+          + [ f"      { _velocity(step) }(1 to HOLD({ step })) <= "
+              f"{ _velocity(step) }(0 to HOLD({ step }) - 1);"
               for step in steps if hold[step] ]
         ),
         narrow = '\n'.join(
-            f"    s{ step :02d}_d(idx) <= x{ step :02d}(0)(idx)"
+            f"    { _narrowed(step) }(idx) <= { _accum(step) }(0)(idx)"
             f"({ accum_width - 1 } downto { accum_width - state_width });"
             for step in steps
         ),
-        instances = ''.join(instance_list),
+        instances = ''.join(_step_block(step) for step in steps),
         decode = _instance(Codec.s_DECODE_TOP,
                            _port_map(n_channels, x = "x_out") + ",\n"
                            + _port_map(codec.n_decoded, decoded = "decoded")),
