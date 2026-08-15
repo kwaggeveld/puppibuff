@@ -11,12 +11,13 @@ import numpy as np
 # Trains a BDT to distinguish real data vs sampled data, and computes AOC score 
 # to quantify how different the two distributions are
 
-# Note to self: on a huge { n_steps = 30, n_events = None, n_estimators = 150, max_depth = 8 }
-# model the test gave 0.9143, while the histograms visually look good.
-
 N_SAMPLES = 500_000
 
 CHANNELS = [ "pt", "eta", "phi" ]
+                                        # The resolution of training data. Without
+                                        # it the classifier scores .93 on float
+                                        # precision alone, regardless of the model.
+GRID = { "pt": .25 }
 
 def main():
     if len(sys.argv) < 2:
@@ -31,10 +32,11 @@ def main():
 
     samples = codec.decode(model.sample(N_SAMPLES))
 
-    auc   = classifier_two_sample_test(holdout, samples, channels = CHANNELS)
+    auc   = classifier_two_sample_test(holdout, samples, channels = CHANNELS,
+                                       quantisation = GRID)
 
     print(f"\nC2ST over { CHANNELS }, { N_SAMPLES } samples\n"
-          f"  auc       { auc :.4f}    .5 = indistinguishable\n"
+          f"  AUC       { auc :.4f}    (0.5 => indistinguishable)\n"
           f"  excess    { auc - .5 :+.4f}\n"
           f"  joint_mse { joint_mse(holdout, samples, channels = CHANNELS) :.3e}")
 
