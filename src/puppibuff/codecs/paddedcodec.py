@@ -58,3 +58,8 @@ class PaddedCodec(FixedMCodec):
         raise NotImplementedError(
             "PaddedCodec has no HLS decode writer (yet)..."
         )
+
+    def decode_params_h(self) -> str:
+        raise NotImplementedError(
+            "PaddedCodec has no HLS decode writer (yet)..."
+        )

@@ -15,6 +15,9 @@ class Codec(ABC):
     s_DECODED: list[str]                # The channels `decode` returns
 
     s_DECODE_TOP = "decode"             # `decode_cpp`'s HLS top function
+                                        
+    s_DECODE_PARAMS = "decode_params.h"  # The Codec's fitted constants, 
+                                        # which `decode.cpp` reads
 
     multiplicity: int                   # Slots per event
 
@@ -63,6 +66,13 @@ class Codec(ABC):
     def decode_cpp(self) -> str:
         """Write `firmware/decode.cpp`: the HLS block that decodes sampled events
         from normalised space.
+        """
+        ...
+
+    @abstractmethod
+    def decode_params_h(self) -> str:
+        """Write `firmware/decode_params.h`, the fitted constants `decode.cpp`
+        reads.
         """
         ...
 

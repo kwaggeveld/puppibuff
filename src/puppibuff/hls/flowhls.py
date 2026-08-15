@@ -182,9 +182,10 @@ class FlowHLS:
             "firmware/flowhls.h":                   write.flowhls_h(self.n_steps),
             f"firmware/{ c.STEP_TOP }.cpp":         write.ab2_step_cpp(self.n_steps),
             f"firmware/{ Codec.s_DECODE_TOP }.cpp": self.codec.decode_cpp(),
+            f"firmware/{ Codec.s_DECODE_PARAMS }":  self.codec.decode_params_h(),
             "firmware/sample.cpp":                  write.sample_cpp(self.n_steps),
             "bridge.cpp":                           write.bridge_cpp(self.n_steps),
-            c.BUILD_SCRIPT:                           write.build_all_sh(self.blocks),
+            c.BUILD_SCRIPT:                         write.build_all_sh(self.blocks),
 
             **{                         # One source per flow step
                 f"firmware/{ c.FIELD_NAME(step) }.cpp": write.field_sXX_cpp(step, bdts_in_step)
