@@ -25,7 +25,7 @@ def main():
 
     config, codec, model = from_zip(sys.argv[1])
 
-    data = config.dataset_cls()
+    data = config.dataset()
                                         # Try to use events that have not been 
                                         # used for training
     holdout = data[config.n_events:] if config.n_events is not None else data

@@ -30,8 +30,8 @@ DEFAULT_TREE_CONFIG = {
 
 @dataclass
 class Config(ABC):
-    dataset_cls: ClassVar[type[Dataset]]# Fixed by each concrete config
-    codec_cls:   ClassVar[type[Codec]]
+    dataset: ClassVar[type[Dataset]]# Fixed by each concrete config
+    codec:   ClassVar[type[Codec]]
 
     n_steps:  int = 15
     n_events: int | None = 500_000      # None => train on the entire dataset
@@ -52,9 +52,9 @@ class Config(ABC):
         training set, and construct the (untrained) model. Pass an already-loaded
         `data` to reuse it instead of reloading from disk.
         """
-        data = data if data is not None else self.dataset_cls()
+        data = data if data is not None else self.dataset()
 
-        codec = self.codec_cls(self.s1phi)
+        codec = self.codec(self.s1phi)
         codec.fit(data)
 
         x1 = codec.encode(data[:self.n_events])

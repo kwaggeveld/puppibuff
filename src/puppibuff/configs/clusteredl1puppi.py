@@ -10,5 +10,5 @@ from dataclasses import dataclass
 
 @dataclass
 class ClusteredL1PuppiConfig(Config):
-    dataset_cls = ClusteredL1Puppi
-    codec_cls   = PaddedCodec
+    dataset = ClusteredL1Puppi
+    codec   = PaddedCodec

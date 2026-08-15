@@ -10,5 +10,5 @@ from dataclasses import dataclass
 
 @dataclass
 class FlatPuppiJetConfig(Config):
-    dataset_cls = FlatPuppiJet
-    codec_cls   = FixedMCodec
+    dataset = FlatPuppiJet
+    codec   = FixedMCodec

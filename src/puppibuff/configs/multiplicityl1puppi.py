@@ -10,5 +10,5 @@ from dataclasses import dataclass
 
 @dataclass
 class MultiplicityL1PuppiConfig(Config):
-    dataset_cls = ClusteredL1Puppi
-    codec_cls   = MultiplicityCodec
+    dataset = ClusteredL1Puppi
+    codec   = MultiplicityCodec
