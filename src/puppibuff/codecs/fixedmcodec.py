@@ -1,5 +1,6 @@
 from .codec import Codec
 from ..datasets import Dataset
+from ..utils import fill_template
 
 import numpy as np
 
@@ -139,90 +140,30 @@ class FixedMCodec(Codec):
                 "Fit the codec with s1phi = False."
             )
 
-        return f"""#include "flowhls.h"
+        return fill_template("puppibuff.codecs", "fixedmcodec.cpp")
 
-                                        // Slots per event
-static size_t const multiplicity = { self.multiplicity };
 
-                                        // Fitted statistics. 
-static accum_t   const pt_mean  = { self.pt_mean };
-static accum_t   const pt_std   = { self.pt_std };
-static decoded_t const eta_mean = { self.eta_mean };
-static decoded_t const eta_std  = { self.eta_std };
-                                        // phi's, in turns rather than radians
-static accum_t   const phi_mean = { self.phi_mean / (2 * np.pi) };
-static accum_t   const phi_std  = { self.phi_std / (2 * np.pi) };
+    def decode_params_hh(self) -> str:
+        return fill_template("puppibuff.codecs", self.s_DECODE_PARAMS,
+            multiplicity = self.multiplicity,
 
-                                        // Observed ranges.
-static decoded_t const eta_min = { self.eta_min };
-static decoded_t const eta_max = { self.eta_max };
+            pt_mean  = self.pt_mean,
+            pt_std   = self.pt_std,
+            eta_mean = self.eta_mean,
+            eta_std  = self.eta_std,
+            phi_mean = self.phi_mean / (2 * np.pi),  # phi is decoded in turns
+            phi_std  = self.phi_std  / (2 * np.pi),
 
-static decoded_t const two_pi = { 2 * np.pi };
+            eta_min = self.eta_min,
+            eta_max = self.eta_max,
+            two_pi  = 2 * np.pi,
 
-// Lookup table design adapted from:
-// https://github.com/fastmachinelearning/hls4ml/blob/main/hls4ml/templates/vivado/nnet_utils/nnet_activation.h
-static size_t const expm1_scaling    = { self.expm1_scaling };
-static size_t const expm1_table_size = { self.expm1_table_size };
+            expm1_scaling    = self.expm1_scaling,
+            expm1_table_size = self.expm1_table_size,
+            expm1_table      = self.expm1_table,
 
-                                        // Entry idx is expm1(idx / expm1_scaling), 
-                                        // floored at pt_min.
-static decoded_t const expm1_table[expm1_table_size] = {{
-{ self.expm1_table }
-}};
-
-inline decoded_t expm1_lookup(accum_t value)
-{{
-    #pragma HLS inline
-    int table_index = value * expm1_scaling;
-
-    if (table_index < 0)
-        table_index = 0;
-    else if (table_index > int(expm1_table_size) - 1)
-        table_index = expm1_table_size - 1;
-
-    return expm1_table[table_index];
-}}
-
-inline decoded_t clip(decoded_t value, decoded_t low, decoded_t high)
-{{
-    #pragma HLS inline
-    return value < low  ? low  :
-           value > high ? high : value;
-}}
-
-                                        // `phi` is in unit of turns, not radians. 
-                                        // With zero integer bits we have a range
-                                        // of [-0.5, 0.5]. We can then use overflow 
-                                        // acting as wrapping.
-using turns_t = ap_fixed<{ self.s_FRACTION_BITS + 4 }, 0>;  // 4 > log2(2pi)
-
-inline decoded_t wrap_phi(accum_t value)
-{{
-    #pragma HLS inline                  // Narrowing wraps back to [-0.5, 0.5]
-    turns_t const turns = value * phi_std + phi_mean;
-    return turns * two_pi;
-}}
-
-void { self.s_DECODE_TOP }(accum_arr_t x, decoded_arr_t decoded)
-{{
-    #pragma HLS pipeline
-    #pragma HLS array_partition variable=x
-    #pragma HLS array_partition variable=decoded
-
-    for (size_t idx = 0; idx != multiplicity; ++idx)
-    {{
-        #pragma HLS unroll
-        decoded_t const pt  = expm1_lookup(x[idx] * pt_std + pt_mean);
-        decoded_t const eta = x[multiplicity + idx] * eta_std + eta_mean;
-        decoded_t const phi = wrap_phi(x[2 * multiplicity + idx]);
-
-        decoded[idx]                    = pt;           // The LUT clips
-        decoded[multiplicity + idx]     = clip(eta, eta_min, eta_max);
-        decoded[2 * multiplicity + idx] = phi;          // `wrap_phi` rescales
-    }}
-}}
-
-"""
+            turns_width = self.s_FRACTION_BITS + 4,
+        )
 
 
     def _fit_stats(self, pt: NDArray, eta: NDArray, phi: NDArray) -> None:

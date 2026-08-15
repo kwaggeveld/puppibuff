@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+from importlib import resources
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile, ZIP_DEFLATED
@@ -19,6 +21,25 @@ if TYPE_CHECKING:                       # Runtime imports are deferred into
 CONFIG_FILE = "config"                  # Members to_zip/from_zip agree on
 CODEC_FILE  = "codec"
 MODEL_FILE  = "flowbdt"
+
+def fill_template(package: str, name: str, /, **fields) -> str:
+    """Read `package`'s template `firmware/name` and substitute tokens `**field`
+    Raise if given tokens are not equal to the expected tokens.
+    """
+    template = (resources.files(package) / "firmware" / name).read_text()
+
+    token = re.compile(r"\*\*(\w+)\*\*")   # `**name**`
+    found_fields = { match[1] for match in token.finditer(template) }
+    given_fields = set(fields)
+
+    if found_fields != given_fields:
+        raise KeyError(
+            f"Incorrect tokens for { package }/firmware/{ name }: "
+            f"unfilled { found_fields - given_fields }, "
+            f"unused { given_fields - found_fields }."
+        )
+
+    return token.sub(lambda match: str(fields[match[1]]), template)
 
 
 def t_to_step(t: float, n_steps: int) -> int:

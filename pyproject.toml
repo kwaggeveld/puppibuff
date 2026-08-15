@@ -21,5 +21,9 @@ scripts = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"puppibuff.hls" = ["firmware/*"]
+"puppibuff.codecs" = ["firmware/*"]
+
 [tool.mypy]
 disable_error_code = ["import-untyped", "import-not-found"]
