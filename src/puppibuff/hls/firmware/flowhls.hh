@@ -1,5 +1,5 @@
-#ifndef FLOWHLS_H_
-#define FLOWHLS_H_
+#ifndef FLOWHLS_HH_
+#define FLOWHLS_HH_
 
 #include "ap_types.h"
 

@@ -143,7 +143,7 @@ class FixedMCodec(Codec):
         return fill_template("puppibuff.codecs", "fixedmcodec.cpp")
 
 
-    def decode_params_h(self) -> str:
+    def decode_params_hh(self) -> str:
         return fill_template("puppibuff.codecs", self.s_DECODE_PARAMS,
             multiplicity = self.multiplicity,
 

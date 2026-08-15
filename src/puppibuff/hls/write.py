@@ -20,7 +20,7 @@ def _template(name: str, /, **fields) -> str:
 
 #--- Writers: Trees ---
 
-def ap_types_h(
+def ap_types_hh(
     n_channels: int,
     config: XilinxHLSConfig,
     accum_precision: str,
@@ -58,7 +58,7 @@ def _tree(tree, idx: int) -> str:
             f"const tree_{ idx :02d} =\n{{\n" + ",\n".join(rows) + "\n};")
 
 
-def bdt_sXX_gXX_h(model: XilinxHLSModel) -> str:
+def bdt_sXX_gXX_hh(model: XilinxHLSModel) -> str:
     trees = '\n'.join(_tree(tree[0], idx)
                       for idx, tree in enumerate(model.trees))
 
@@ -92,7 +92,7 @@ AXIS_SELECT = "        accumulation = x[feature[i]];"
 
 WEIGHT_TABLE = "  weight_t weight[n_nodes][n_features];\n"
 
-def bdt_h(unroll: bool) -> str:
+def bdt_hh(unroll: bool) -> str:
     """Retrieve conifer's default `BDT.h` and patch it in three places.
 
     1. Replace the call through `split_fn` with the comparison itself.
@@ -145,7 +145,7 @@ def bdt_h(unroll: bool) -> str:
 
 #--- Writers: fields ---
 
-def flowhls_h(n_steps: int) -> str:
+def flowhls_hh(n_steps: int) -> str:
     """Declare one field top per step, plus the solver over them."""
     field_declarations = '\n'.join(f"void { c.FIELD_NAME(step) }(state_arr_t x, state_arr_t v);"
                                      for step in range(n_steps))

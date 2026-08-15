@@ -16,7 +16,7 @@ class Codec(ABC):
 
     s_DECODE_TOP = "decode"             # `decode_cpp`'s HLS top function
                                         
-    s_DECODE_PARAMS = "decode_params.h"  # The Codec's fitted constants, 
+    s_DECODE_PARAMS = "codec_params.hh"  # The Codec's fitted constants, 
                                         # which `decode.cpp` reads
 
     multiplicity: int                   # Slots per event
@@ -70,7 +70,7 @@ class Codec(ABC):
         ...
 
     @abstractmethod
-    def decode_params_h(self) -> str:
+    def decode_params_hh(self) -> str:
         """Write `firmware/decode_params.h`, the fitted constants `decode.cpp`
         reads.
         """

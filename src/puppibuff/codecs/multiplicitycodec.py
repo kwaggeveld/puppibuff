@@ -78,7 +78,7 @@ class MultiplicityCodec(FixedMCodec):
             "MultiplicityCodec has no HLS decode writer (yet)..."
         )
 
-    def decode_params_h(self) -> str:
+    def decode_params_hh(self) -> str:
         raise NotImplementedError(
             "MultiplicityCodec has no HLS decode writer (yet)..."
         )

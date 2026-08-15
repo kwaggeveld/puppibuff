@@ -1,5 +1,5 @@
-#ifndef **name_upper**_H_
-#define **name_upper**_H_
+#ifndef **name_upper**_HH_
+#define **name_upper**_HH_
 
 #include "BDT.h"
 #include "../ap_types.h"

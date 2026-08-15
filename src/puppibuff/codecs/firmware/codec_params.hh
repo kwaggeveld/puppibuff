@@ -1,5 +1,5 @@
-#ifndef DECODE_PARAMS_H_
-#define DECODE_PARAMS_H_
+#ifndef DECODE_PARAMS_HH_
+#define DECODE_PARAMS_HH_
 
 #include "ap_types.h"
                                         // Slots per event
