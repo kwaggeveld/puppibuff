@@ -6,6 +6,7 @@ dependencies = [
     "matplotlib",
     "scipy",
     "xgboost",
+    "scikit-learn",
     "joblib",
     "tqdm",
     "conifer >= 1.9",
