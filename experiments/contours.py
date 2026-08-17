@@ -1,4 +1,4 @@
-from puppibuff.analyses.plotting import plot_contours
+from puppibuff.analyses import plot_contours
 from puppibuff.utils import from_zip
 
 import sys

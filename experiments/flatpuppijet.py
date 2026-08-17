@@ -1,4 +1,4 @@
-from puppibuff.analyses.plotting import plot_histograms
+from puppibuff.analyses import plot_histograms
 from puppibuff.configs import FlatPuppiJetConfig
 
 

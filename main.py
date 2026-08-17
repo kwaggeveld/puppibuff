@@ -1,4 +1,4 @@
-from puppibuff.analyses.plotting import plot_histograms
+from puppibuff.analyses import plot_histograms
 from puppibuff.configs import FlatPuppiJetConfig
 
 from puppibuff.weighting import pt_power_weights

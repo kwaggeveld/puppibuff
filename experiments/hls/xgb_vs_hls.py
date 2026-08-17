@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from puppibuff.analyses.plotting import plot_histograms
+from puppibuff.analyses import plot_histograms
 from puppibuff.configs import FlatPuppiJetConfig
 from puppibuff.hls import constants, FlowHLS
 from puppibuff.utils import initial_noise

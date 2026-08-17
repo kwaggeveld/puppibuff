@@ -1,4 +1,4 @@
-from puppibuff.analyses.losses import classifier_two_sample_test, joint_mse
+from puppibuff.analyses import classifier_two_sample_test, joint_mse
 from puppibuff.utils import from_zip
 
 import sys

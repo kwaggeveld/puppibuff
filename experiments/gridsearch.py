@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from puppibuff.analyses.losses import channel_wasserstein, joint_mse
-from puppibuff.analyses.plotting import plot_histograms
+from puppibuff.analyses import channel_wasserstein, joint_mse, plot_histograms
 from puppibuff.configs import FlatPuppiJetConfig
 from puppibuff.datasets import FlatPuppiJet
 from puppibuff.flowbdt import FlowBDT

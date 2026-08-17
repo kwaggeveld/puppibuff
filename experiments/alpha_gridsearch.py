@@ -1,5 +1,4 @@
-from puppibuff.analyses import total_mse, channel_mse
-from puppibuff.analyses.plotting import plot_histograms
+from puppibuff.analyses import total_mse, channel_mse, plot_histograms
 from puppibuff.configs import FlatPuppiJetConfig
 
 from puppibuff.weighting import pt_power_weights
