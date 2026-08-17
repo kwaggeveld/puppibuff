@@ -48,18 +48,17 @@ def t_to_step(t: float, n_steps: int) -> int:
 
 
 def initial_noise(
-        n_samples: int | None,
-        n_channels: int,
+        shape: tuple[int, int] | None,
         x0: NDArray | None = None,
     ) -> NDArray:
-    """Return noise a sampler starts from, drawn here unless `x0` provides it."""
+    """Return ND Gaussian noise drawn here if `x0` not given."""
     if x0 is not None:
         return x0
 
-    if n_samples is None:
-        raise ValueError("Provide either n_samples or initial noise x0.")
+    if shape is None:
+        raise ValueError("Provide either shape or initial noise x0.")
 
-    return np.random.normal(size = (n_samples, n_channels)).astype(np.float32)
+    return np.random.default_rng().standard_normal(shape, dtype = np.float32)
 
 
 def to_zip(path: str, config: Config, codec: Codec, model: FlowBDT) -> None:

@@ -1,5 +1,7 @@
 import numpy as np
 
+from puppibuff.utils import initial_noise
+
 from numpy.typing import NDArray
 
 #-----------------------------------------------------------------------------
@@ -20,9 +22,18 @@ class Paths:
         t = self.ts[step]
         return t * self.x1 + (1. - t) * self.x0
 
-def build_trainds(x1: NDArray, n_steps: int) -> tuple[Paths, NDArray]:
-    """Draw noise x0 and build Paths from `x0` to `x1` with `n_steps` time steps."""
-    x0 = np.random.default_rng().standard_normal(x1.shape, dtype = np.float32)
+def build_trainds(
+        x1: NDArray, 
+        n_steps: int, 
+        x0: NDArray | None = None
+    ) -> tuple[Paths, NDArray]:
+    """Draw noise x0 if not provided and build Paths from `x0` to `x1` with
+    `n_steps` time steps.
+    """
+    if x0 is not None and x0.shape != x1.shape:
+        raise ValueError(f"Expected x0 with shape { x1.shape }, got { x0.shape }")
+        
+    x0 = initial_noise(x1.shape) if x0 is None else x0
 
     ts = np.linspace(EPSILON, 1, num = n_steps, dtype = np.float32)
 

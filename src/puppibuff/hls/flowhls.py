@@ -317,7 +317,8 @@ class FlowHLS:
         The per-BDT layout integrates in Python and so takes any solver. The
         merged design only supports `midpoint_solve` integration for now.
         """
-        x0 = initial_noise(n_samples, self.n_channels, x0)
+        shape = None if n_samples is None else (n_samples, self.n_channels)
+        x0 = initial_noise(shape, x0)
 
         if self.merged:
             if solver is not c.SAMPLE_SOLVER:

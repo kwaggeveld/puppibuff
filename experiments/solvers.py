@@ -109,7 +109,7 @@ def main():
                                         # the solvers differ only in how they
                                         # integrate. Both models encode to the
                                         # same channels, so both can start here
-        x0 = initial_noise(N_SAMPLES, model.n_channels)
+        x0 = initial_noise((N_SAMPLES, model.n_channels))
 
         for label, run_model, run_codec, solver, _ in runs:
             samples, channel_losses = evaluate(data, run_codec, run_model,

@@ -47,7 +47,11 @@ class Config(ABC):
         if self.multi_output:
             self.tree_config.setdefault("multi_strategy", "multi_output_tree")
 
-    def setup(self, data: Dataset | None = None) -> tuple[Dataset, Codec, FlowBDT, Paths, NDArray]:
+    def setup(
+        self, 
+        data: Dataset | None = None, 
+        x0: NDArray | None = None
+    ) -> tuple[Dataset, Codec, FlowBDT, Paths, NDArray]:
         """Load the dataset, fit + apply the codec, build the flow-matching
         training set, and construct the (untrained) model. Pass an already-loaded
         `data` to reuse it instead of reloading from disk.
@@ -58,7 +62,7 @@ class Config(ABC):
         codec.fit(data)
 
         x1 = codec.encode(data[:self.n_events])
-        x, y = build_trainds(x1, self.n_steps)
+        x, y = build_trainds(x1, self.n_steps, x0)
 
         sizes = codec.group_sizes() if self.multi_output else None
         model = FlowBDT(self.tree_config, sizes)

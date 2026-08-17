@@ -100,7 +100,8 @@ class FlowBDT():
         """Starting from noise, provided or sampled here, integrate the learnt
         vector field to generate a new event.
         """
-        x0 = initial_noise(n_samples, self.n_channels, x0)
+        shape = None if n_samples is None else (n_samples, self.n_channels)
+        x0    = initial_noise(shape, x0)
 
         return solver(self.predict, x0, self.n_steps)
 

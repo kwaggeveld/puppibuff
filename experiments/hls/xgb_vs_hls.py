@@ -62,7 +62,7 @@ def main():                             # Pass directory for the HLS project(s)
     outdir = Path(__file__).resolve().parent / Path(__file__).stem
     outdir.mkdir(exist_ok = True)
 
-    x0 = initial_noise(n_samples = N_SAMPLES, n_channels = hls.n_channels)
+    x0 = initial_noise((N_SAMPLES, hls.n_channels))
 
     samplers = [("hls", hls, N_HLS)]
     if not reuse:
