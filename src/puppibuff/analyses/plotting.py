@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from ..datasets import Dataset
 
+from itertools import combinations
+
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 from scipy.stats import gaussian_kde
 
 from typing import Callable
@@ -100,16 +103,31 @@ def _plot_channel(ax, rax, name: str, target: NDArray, sample: NDArray,
     _finish_panel(ax, rax, name, "Probability density")
 
 
-_KDE_MAX_POINTS = 50_000                # A KDE eval is O(n_data * len(grid));
-                                        # 50k points already give a smooth
-                                        # estimate, so cap to stay responsive
+_KDE_MAX_POINTS = 50_000                # A KDE eval is O(n_data * len(grid))
 
 def _kde(data: NDArray) -> gaussian_kde:
-    """Return Gaussian-KDE estimator for `data`, subsampling large inputs."""
-    if len(data) > _KDE_MAX_POINTS:     # Deterministic subsample => stable plots
-        data = data[np.random.default_rng(0).choice(len(data), _KDE_MAX_POINTS, replace = False)]
+    """Return Gaussian KDE estimator for `data`, subsampling large inputs.
+    `data` is 1D for a marginal, or `(n_channels, n_events)` for a joint
+    density. NB: transposed compared to normal.
+    """
+    n_points = data.shape[-1]
+    if n_points > _KDE_MAX_POINTS:
+        data = data[..., np.random.default_rng(0).choice(n_points, _KDE_MAX_POINTS, replace = False)]
 
     return gaussian_kde(data)
+
+
+def _mass_levels(density: NDArray, quantiles: tuple[float, ...]) -> NDArray:
+    """Density levels enclosing the given fractions of the total probability
+    mass, ascending as `contour` requires. Sorting descending turns the
+    cumulative sum into "mass at or above this level", so a quantile's level is
+    where that first reaches it. `np.unique` both sorts and drops the duplicates
+    two quantiles produce on a flat density, which `contour` rejects.
+    """
+    ranked   = np.sort(density, axis = None)[::-1]
+    enclosed = np.cumsum(ranked) / ranked.sum()
+
+    return np.unique(ranked[np.clip(np.searchsorted(enclosed, quantiles), 0, ranked.size - 1)])
 
 
 def _density_ratio(sample: NDArray, ref: NDArray) -> NDArray:
@@ -184,22 +202,102 @@ def _plot_multiplicity(ax, rax, target_real: NDArray, sample_real: NDArray,
     rax.set_xticks(bins)                 # One tick per integer multiplicity
 
 
-def _plot_grid(target: Dataset, sample: dict[str, NDArray],
-               channels: list[str] | None, n_events: int | None,
-               plot_channel: Callable, resolution: int) -> tuple[Figure, NDArray, list[int], int]:
-    """Shared flat/jet iteration behind `plot_histograms`/`plot_distributions`. Detect
-    jet vs flat on `"real" in sample`, build the column grid (a leading
-    multiplicity bar panel for jet data), drop padding on both sides, and call
-    `plot_channel(ax, rax, name, truth, sampled, train, resolution)` per channel,
-    where `resolution` is the histogram bin count or the KDE grid size. Return
-    `(fig, axes, log_cols, offset)`, where `offset` is the leading multiplicity 
-    column count (1 for jets, else 0).
+_QUANTILES = (.25, .5, .75, .95)        # Contours enclose these fractions of the
+                                        # total probability mass
+
+_SPAN = (.1, 99.9)                      # Percentiles the evaluation grid spans.
+                                        # Excluding extreme percentiles removes
+                                        # outliers.
+
+def _joint_density(marginals: tuple[NDArray, ...], grid: NDArray) -> NDArray:
+    """Joint KDE of `marginals` evaluated over `grid`, a `(n_axes, *shape)` 
+    meshgrid, and reshaped back to that grid.
+    """
+    return _kde(np.stack(marginals))(grid.reshape(len(marginals), -1)).reshape(grid.shape[1:])
+
+
+def _plot_contour(ax, grid: NDArray, density: NDArray, color: str, style: str,
+                  width: float, zorder: int, fill: bool) -> None:
+    """One combination's mass contours."""
+    levels = _mass_levels(density, _QUANTILES)
+
+    if fill:
+        ax.contourf(*grid, density, levels = levels, colors = color,
+                    alpha = .25, zorder = zorder, extend = "max")
+
+    ax.contour(*grid, density, levels = levels, colors = color,
+               linestyles = style, linewidths = width, zorder = zorder + 1)
+
+
+_LOG_CHANNELS = ( "pt" )                # `pt` spans orders of magnitude while
+                                        # eta/phi are O(1)
+
+def _rescale(names: tuple[str, str], series: tuple[NDArray, NDArray]) -> tuple[NDArray, NDArray]:
+    """Map one point cloud into the space its KDE is estimated in. Take logarithm
+    of channels in `_LOG_CHANNELS`, otherwise identity map.
+    """
+    first, second = ( np.log1p(values) if channel in _LOG_CHANNELS else values
+                      for channel, values in zip(names, series) )
+
+    return first, second
+
+
+def _axis_label(name: str) -> str:
+    """Name the plotted variable, which is the rescaled one for `_LOG_CHANNELS`."""
+    return f"log1p({ name })" if name in _LOG_CHANNELS else name
+
+
+def _plot_pair_density(
+    ax, 
+    pair: tuple[str, str], 
+    target: tuple[NDArray, NDArray],
+    sample: tuple[NDArray, NDArray],
+    train: tuple[NDArray, NDArray] | None, 
+    points: int
+) -> None:
+    """One channel pair: target/sample/(optional train) joint-KDE contours on a
+    shared evaluation grid. The 2-D counterpart of `_plot_channel_density`.
+    """
+    target = _rescale(pair, target)
+    sample = _rescale(pair, sample)
+    train  = train if train is None else _rescale(pair, train)
+
+                                        # Shared grid so the contour sets are
+    grids = []                          # directly comparable
+    for truth, sampled in zip(target, sample):
+        low, high = np.percentile(np.concatenate([truth, sampled]), _SPAN)
+        grids.append(np.linspace(low, high, points))
+
+    grid = np.stack(np.meshgrid(grids[0], grids[1], indexing = "ij"))
+
+                                        # Target
+    _plot_contour(ax, grid, _joint_density(target, grid), _TARGET_C, "solid",
+                  width = 0.8, zorder = 1, fill = True)
+
+    if train is not None:               # Training
+        _plot_contour(ax, grid, _joint_density(train, grid), _TRAIN_C, "dotted",
+                      width = 0.5, zorder = 3, fill = False)
+
+                                        # Sampled
+    _plot_contour(ax, grid, _joint_density(sample, grid), _SAMPLE_C, "dashed",
+                  width = 1, zorder = 5, fill = False)
+
+    ax.set_xlabel(_axis_label(pair[0]))
+    ax.set_ylabel(_axis_label(pair[1]))
+    ax.grid(True, alpha = 0.3)
+
+
+def _channel_data(
+    target: Dataset, 
+    sample: dict[str, NDArray],
+    channels: list[str] | None, 
+    n_events: int | None,
+) -> dict[str, tuple[NDArray, NDArray, NDArray | None]]:
+    """Construct per-channel `(truth, sampled, train)` arrays, with jet padding 
+    dropped.
     """
     jet      = "real" in sample
     channels = channels or (["pt", "eta", "phi"] if jet else target.channels())
-    offset   = 1 if jet else 0          # Leading multiplicity column for jets
-
-    fig, axes = _make_grid(len(channels) + offset)
 
                                         # Flat data keeps every element, so its
                                         # masks are the no-op `slice(None)` (i.e.
@@ -209,21 +307,40 @@ def _plot_grid(target: Dataset, sample: dict[str, NDArray],
     sample_mask: slice | NDArray = slice(None)
     train_mask:  slice | NDArray = slice(None)
 
-    if jet:                             # First panel: multiplicity distribution
-        train_real = target["real"][:n_events] if n_events is not None else None
-        _plot_multiplicity(axes[0, 0], axes[1, 0], target["real"], sample["real"], train_real)
-
+    if jet:
         target_mask = target["real"] > 0.5
         sample_mask = sample["real"] > 0.5
         if n_events is not None:
             train_mask = target["real"][:n_events] > 0.5
 
-    for column, channel in enumerate(channels, start = offset):
-        truth   = target[channel][target_mask]
-        sampled = sample[channel][sample_mask]
-        train   = target[channel][:n_events][train_mask] if n_events is not None else None
+    return { channel: (target[channel][target_mask],
+                       sample[channel][sample_mask],
+                       target[channel][:n_events][train_mask] if n_events is not None else None)
+             for channel in channels }
 
-        plot_channel(axes[0, column], axes[1, column], channel, truth, sampled, train, resolution)
+
+def _plot_grid(target: Dataset, sample: dict[str, NDArray],
+               channels: list[str] | None, n_events: int | None,
+               plot_channel: Callable, resolution: int) -> tuple[Figure, NDArray, list[int], int]:
+    """Shared flat/jet iteration behind `plot_histograms`/`plot_distributions`.
+    Build the column grid (a leading multiplicity bar panel for jet data) and
+    call `plot_channel(ax, rax, name, truth, sampled, train, resolution)` per
+    channel, where `resolution` is the histogram bin count or the KDE grid size.
+    Return `(fig, axes, log_cols, offset)`, where `offset` is the leading
+    multiplicity column count (1 for jets, else 0).
+    """
+    jet    = "real" in sample
+    data   = _channel_data(target, sample, channels, n_events)
+    offset = 1 if jet else 0            # Leading multiplicity column for jets
+
+    fig, axes = _make_grid(len(data) + offset)
+
+    if jet:                             # First panel: multiplicity distribution
+        train_real = target["real"][:n_events] if n_events is not None else None
+        _plot_multiplicity(axes[0, 0], axes[1, 0], target["real"], sample["real"], train_real)
+
+    for column, (channel, series) in enumerate(data.items(), start = offset):
+        plot_channel(axes[0, column], axes[1, column], channel, *series, resolution)
 
     return fig, axes, [0, 1] if jet else [0], offset
 
@@ -270,5 +387,39 @@ def plot_distributions(
             ax   = axes[0, col]
             peak = max(line.get_ydata().max() for line in ax.lines)
             ax.set_ylim(peak * 1e-8, peak * 2)
+
+    return fig
+
+
+def plot_contours(
+    target: Dataset,                    # Truth channels (+ `real` for jets)
+    sample: dict[str, NDArray],         # Decoded, generated channels
+    channels: list[str] | None = None,
+    n_events: int | None = None,        # Cut => overlay the trained-on subset
+    points: int = 100,                  # KDE evaluation-grid resolution per axis
+) -> Figure:
+    """Make pairwise joint-KDE contour plots. One panel per channel pair, each
+    contour enclosing a fixed fraction of the joined probability mass.
+    """
+    data  = _channel_data(target, sample, channels, n_events)
+    pairs = list(combinations(data, 2))
+
+    fig, axes = plt.subplots(1, len(pairs), figsize = (5 * len(pairs), 5), squeeze = False)
+
+    for ax, pair in zip(axes[0], pairs):
+        truth, sampled, train = zip(*(data[name] for name in pair))
+
+        _plot_pair_density(ax, pair, truth, sampled,
+                   None if train[0] is None else train, points)
+
+                                        # A contour registers no legend handle,
+                                        # so the labels ride on empty proxies.
+    handles = [ Line2D([], [], color = _TARGET_C, linestyle = "solid",  label = _TARGET["label"]),
+                Line2D([], [], color = _SAMPLE_C, linestyle = "dashed", label = _SAMPLE["label"]) ]
+
+    if n_events is not None:            # Cut of dataset given?
+        handles.append(Line2D([], [], color = _TRAIN_C, linestyle = "dotted", label = _TRAIN["label"]))
+
+    fig.legend(handles = handles)
 
     return fig
