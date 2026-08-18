@@ -30,9 +30,9 @@ TARGET_CONTOUR: dict = dict(colors = TARGET_C, linestyles = "solid",  linewidths
 TRAIN_CONTOUR:  dict = dict(colors = TRAIN_C,  linestyles = "dotted", linewidths = 0.5, zorder = 3)
 SAMPLE_CONTOUR: dict = dict(colors = SAMPLE_C, linestyles = "dashed", linewidths = 1.0, zorder = 5)
 
-LOG_CHANNELS = set("pt")                # `pt` spans orders of magnitude while
-                                        # eta/phi are O(1). Jets do as well.
-LOG_COLUMNS  = LOG_CHANNELS | set("multiplicity")
+                                        # `pt` spans orders of magnitude while                
+LOG_CHANNELS = { "pt" }                 # eta/phi are O(1). Jets do as well.
+LOG_COLUMNS  = LOG_CHANNELS | { "multiplicity" }
 
 #--- Numeric helpers ---
 
