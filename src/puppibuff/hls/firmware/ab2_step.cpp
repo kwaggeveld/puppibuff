@@ -1,4 +1,4 @@
-#include "flowhls.h"
+#include "flowhls.hh"
 
                                         // c1 = h * 1.5, c2 = h * 0.5
 static accum_t const c1 = **c1**;

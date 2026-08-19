@@ -1,7 +1,7 @@
-#include "flowhls.h"
-#include "decode_params.h"
+#include "flowhls.hh"
+#include "codec_params.hh"
 
-/* Every fitted constant lives in `decode_params.h` so this file is plain source.
+/* Every fitted constant lives in `codec_params.hh` so this file is plain source.
  */
 
 inline decoded_t expm1_lookup(accum_t value)
@@ -31,7 +31,7 @@ inline decoded_t wrap_phi(accum_t value)
     return turns * two_pi;
 }
                                         // Name fixed by `Codec.s_DECODE_TOP`,
-                                        // which `flowhls.h` declares
+                                        // which `flowhls.hh` declares
 void decode(accum_arr_t x, decoded_arr_t decoded)
 {
     #pragma HLS pipeline

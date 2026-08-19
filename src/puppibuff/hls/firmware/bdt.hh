@@ -2,7 +2,7 @@
 #define **name_upper**_HH_
 
 #include "BDT.h"
-#include "../ap_types.h"
+#include "../ap_types.hh"
 
 namespace **name**
 {

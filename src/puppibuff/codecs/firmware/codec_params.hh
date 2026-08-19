@@ -1,7 +1,7 @@
-#ifndef DECODE_PARAMS_HH_
-#define DECODE_PARAMS_HH_
+#ifndef CODEC_PARAMS_HH_
+#define CODEC_PARAMS_HH_
 
-#include "ap_types.h"
+#include "ap_types.hh"
                                         // Slots per event
 static size_t const multiplicity = **multiplicity**;
 

@@ -1,7 +1,7 @@
 #ifndef FLOWHLS_HH_
 #define FLOWHLS_HH_
 
-#include "ap_types.h"
+#include "ap_types.hh"
 
 **field_declarations**
 

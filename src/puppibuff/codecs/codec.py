@@ -71,7 +71,7 @@ class Codec(ABC):
 
     @abstractmethod
     def decode_params_hh(self) -> str:
-        """Write `firmware/decode_params.h`, the fitted constants `decode.cpp`
+        """Write `firmware/codec_params.hh`, the fitted constants `decode.cpp`
         reads.
         """
         ...

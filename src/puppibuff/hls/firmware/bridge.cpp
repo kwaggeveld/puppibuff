@@ -1,5 +1,5 @@
-#include "firmware/ap_types.h"
-#include "firmware/flowhls.h"
+#include "firmware/ap_types.hh"
+#include "firmware/flowhls.hh"
 
 #include <vector>
 #include <stdexcept>

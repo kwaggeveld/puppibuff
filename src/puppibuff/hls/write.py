@@ -27,7 +27,7 @@ def ap_types_hh(
     codec: Codec,
 ) -> str:
     """Write the types shared by the whole design."""
-    return _template("ap_types.h",
+    return _template("ap_types.hh",
         n_channels  = n_channels,
         n_decoded   = codec.n_decoded,
         state_t     = config.input_precision,                                   # type: ignore[reportAttributeAccessIssue]
@@ -70,7 +70,7 @@ def bdt_sXX_gXX_hh(model: XilinxHLSModel) -> str:
 
     name = model.config.project_name                                            # type: ignore[reportAttributeAccessIssue]
 
-    return _template("bdt.h",
+    return _template("bdt.hh",
         name          = name,
         name_upper    = name.upper(),
         n_trees       = n_trees,
@@ -150,7 +150,7 @@ def flowhls_hh(n_steps: int) -> str:
     field_declarations = '\n'.join(f"void { c.FIELD_NAME(step) }(state_arr_t x, state_arr_t v);"
                                      for step in range(n_steps))
 
-    return _template("flowhls.h",
+    return _template("flowhls.hh",
         field_declarations = field_declarations,
         step_top           = c.STEP_TOP,
         sample_top         = c.SAMPLE_TOP,
@@ -160,7 +160,7 @@ def flowhls_hh(n_steps: int) -> str:
 
 def field_sXX_cpp(step: int, bdts_in_step: list[str]) -> str:
     """Define one step's field top. Only include this step's BDT headers."""
-    includes = '\n'.join(f"#include \"bdt_grid/{ bdt_name }.h\""
+    includes = '\n'.join(f"#include \"bdt_grid/{ bdt_name }.hh\""
                          for bdt_name in bdts_in_step)
 
     calls = '\n'.join(f"    v[{ idx }] = { bdt_name }::decision_function(x);"

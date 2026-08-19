@@ -9,6 +9,7 @@ __pycache__/
 *.so
 *.ih
 *.h
+*.hh
 *.cpp
 *.tcl
 *.json

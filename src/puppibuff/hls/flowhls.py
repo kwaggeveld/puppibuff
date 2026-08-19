@@ -178,8 +178,8 @@ class FlowHLS:
 
         files_to_write = {
             "firmware/bdt_grid/BDT.h":              write.bdt_hh(bdt_config.unroll),
-            "firmware/ap_types.h":                  write.ap_types_hh(self.n_channels, bdt_config, c.ACCUM_PRECISION, self.codec),
-            "firmware/flowhls.h":                   write.flowhls_hh(self.n_steps),
+            "firmware/ap_types.hh":                 write.ap_types_hh(self.n_channels, bdt_config, c.ACCUM_PRECISION, self.codec),
+            "firmware/flowhls.hh":                  write.flowhls_hh(self.n_steps),
             f"firmware/{ c.STEP_TOP }.cpp":         write.ab2_step_cpp(self.n_steps),
             f"firmware/{ Codec.s_DECODE_TOP }.cpp": self.codec.decode_cpp(),
             f"firmware/{ Codec.s_DECODE_PARAMS }":  self.codec.decode_params_hh(),
@@ -193,7 +193,7 @@ class FlowHLS:
             },
 
             **{                         # One header per BDT
-                f"firmware/bdt_grid/{ model.config.project_name }.h": write.bdt_sXX_gXX_hh(model)
+                f"firmware/bdt_grid/{ model.config.project_name }.hh": write.bdt_sXX_gXX_hh(model)
                 for model in self.bdt_grid.flat
             },
                                         # HLS project `.tcl` scripts
