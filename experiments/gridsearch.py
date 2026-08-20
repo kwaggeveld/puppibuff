@@ -51,13 +51,18 @@ def model_size(model: FlowBDT, n_estimators: int, max_depth: int) -> int:
     return model.bdt_grid.size * n_estimators * 2 ** max_depth
 
 
+def events_label(n_events: int | None) -> str:
+    """`n_events` as a label; `None` (the whole dataset) takes no `,` format."""
+    return "all" if n_events is None else f"{ n_events :,}"
+
+
 def suptitle(grid_pt: tuple, size: int, per_channel: dict[str, float],
              SW1: float) -> str:
     """Two-line figure caption: the grid point, then its scores."""
     max_depth, n_estimators, s1phi, n_steps, n_events = grid_pt
 
     params   = (f"{max_depth = } | {n_estimators = } | {s1phi = }  "
-                f"{n_steps = } | {n_events = :,} | {size = :.2e}")
+                f"{n_steps = } | n_events = { events_label(n_events) } | {size = :.2e}")
     channels = "  ".join( f"{ name } { value :.4g}" for name, value in per_channel.items() )
     scores   = f"sliced W = { SW1 :.4g}    |    per-channel W:  { channels }"
 
@@ -130,7 +135,7 @@ def main():  # NB: tqdm.write used instead of print() to preserve progress bar
         max_depth, n_estimators, s1phi, n_steps, n_events = grid_pt
         tqdm.write(f"\n[{ index }/{ len(grid) }] {max_depth = } | "
                    f"{n_estimators = } | {s1phi = } | "
-                   f"{n_steps = } | {n_events = :,}")
+                   f"{n_steps = } | n_events = { events_label(n_events) }")
 
         config = make_config(*grid_pt)
         _, codec, model, x, y = config.setup(data)      # Reuse the shared dataset
