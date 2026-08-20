@@ -72,6 +72,52 @@ def joint_mse(
 
     return float(np.mean((real_hist - fake_hist) ** 2))
 
+
+SLICED_SEED = 0
+
+
+def _subsample(cloud: NDArray, n: int, rng: np.random.Generator) -> NDArray:
+    """Draw `n` rows without replacement if there are more than `n` rows."""
+    if len(cloud) <= n: return cloud
+    return cloud[rng.choice(len(cloud), n, replace = False)]
+
+
+def sliced_wasserstein(
+    data: Dataset,
+    gen: dict[str, NDArray],
+    channels: list[str] | None = None,
+    n_projections: int = 128,
+    max_events: int | None = 500_000,
+) -> float:
+    """Mean 1-D Wasserstein distance over `n_projections` random projection
+    directions.
+
+    Channels are standardised to prevent `pt`'s ~1000 GeV range from dominating
+    the metric. Both clouds are subsampled to `max_events` (`None` for all).
+    """
+    channels = channels or data.channels()
+                                        # (N, d) point clouds, as `joint_mse` builds
+    real = np.stack([ data[channel] for channel in channels ], axis = 1)
+    fake = np.stack([ gen[channel]  for channel in channels ], axis = 1)
+
+    rng = np.random.default_rng(SLICED_SEED)
+
+                                        # Uniform on the unit sphere
+    directions  = rng.normal(size = (n_projections, len(channels)))
+    directions /= np.linalg.norm(directions, axis = 1, keepdims = True)
+
+    if max_events is not None:
+        real = _subsample(real, max_events, rng)
+        fake = _subsample(fake, max_events, rng)
+
+    mean, std = real.mean(axis = 0), real.std(axis = 0)
+    real, fake = (real - mean) / std, (fake - mean) / std
+
+    return float(np.mean([
+        wasserstein_distance(real @ direction, fake @ direction)
+        for direction in directions
+    ]))
+
 #--- Classifier two-sample test ---
 
 def _c2st_auc(

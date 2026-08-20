@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from puppibuff.analyses import channel_wasserstein, joint_mse, plot_histograms
+from puppibuff.analyses import channel_wasserstein, sliced_wasserstein, plot_histograms
 from puppibuff.configs import FlatPuppiJetConfig
 from puppibuff.datasets import FlatPuppiJet
 from puppibuff.flowbdt import FlowBDT
@@ -52,14 +52,14 @@ def model_size(model: FlowBDT, n_estimators: int, max_depth: int) -> int:
 
 
 def suptitle(grid_pt: tuple, size: int, per_channel: dict[str, float],
-             mse: float) -> str:
+             SW1: float) -> str:
     """Two-line figure caption: the grid point, then its scores."""
     max_depth, n_estimators, s1phi, n_steps, n_events = grid_pt
 
     params   = (f"{max_depth = } | {n_estimators = } | {s1phi = }  "
                 f"{n_steps = } | {n_events = :,} | {size = :.2e}")
     channels = "  ".join( f"{ name } { value :.4g}" for name, value in per_channel.items() )
-    scores   = f"joint MSE = { mse :.4g}    |    per-channel W:  { channels }"
+    scores   = f"sliced W = { SW1 :.4g}    |    per-channel W:  { channels }"
 
     return params + "\n" + scores
 
@@ -90,28 +90,28 @@ def output_path(grid_pt: tuple) -> Path:
 
 
 def report(results: list[dict], outdir: Path) -> None:
-    """Print every combination ranked by joint MSE (best first) and save the
-    same table to `summary.txt` beside the figures.
+    """Print every combination ranked by sliced Wasserstein (best first) and save
+    the same table to `summary.txt` beside the figures.
     """
     channels = list(results[0]["per_channel"])
 
     header = (f"{ 'depth' :>5} { 'trees' :>5} { 's1phi' :>5} { 'steps' :>5} { 'events' :>8} "
               f"{ 'size' :>10} " + " ".join(f"{ 'W_' + name :>9}" for name in channels)
-              + f" { 'MSE_3d' :>9}")
+              + f" { 'SW1' :>9}")
 
     lines = [ header ]
-    for result in sorted(results, key = lambda result: result["mse"]):
+    for result in sorted(results, key = lambda result: result["SW1"]):
         max_depth, n_estimators, s1phi, n_steps, n_events = result["combo"]
         per_channel = " ".join(f"{ result['per_channel'][name] :>9.4g}" for name in channels)
 
         lines.append(
             f"{ max_depth :>5} { n_estimators :>5} { str(s1phi) :>5} { n_steps :>5} "
             f"{ str(n_events) :>8} { result['size'] :>10.2e} { per_channel } "
-            f"{ result['mse'] :>9.4g}"
+            f"{ result['SW1'] :>9.4g}"
         )
 
     table = "\n".join(lines)
-    print("\nRanked by joint MSE (best first):\n")
+    print("\nRanked by sliced Wasserstein (best first):\n")
     print(table)
     (outdir / "summary.txt").write_text(table + "\n")
 
@@ -138,16 +138,16 @@ def main():  # NB: tqdm.write used instead of print() to preserve progress bar
 
         samples = codec.decode(model.sample(N_SAMPLES))
 
-                                        # Per-channel Wasserstein for the plot,
-                                        # joint MSE ranks models
+                                        # Per-channel Wasserstein is a marginal
+                                        # diagnostic, sliced Wasserstein ranks models
         per_channel = { channel: channel_wasserstein(data[channel], samples[channel])
                         for channel in data.channels() }
-        mse  = joint_mse(data, samples)
+        SW1  = sliced_wasserstein(data, samples)
         size = model_size(model, n_estimators, max_depth)
 
                                         # Only sampled vs target distributions
         figure = plot_histograms(data, samples, n_events = None)
-        figure.suptitle(suptitle(grid_pt, size, per_channel, mse), fontsize = 11)
+        figure.suptitle(suptitle(grid_pt, size, per_channel, SW1), fontsize = 11)
         figure.subplots_adjust(top = 0.86)      # Room for the two-line suptitle
 
         path = outdir / output_path(grid_pt)
@@ -156,8 +156,8 @@ def main():  # NB: tqdm.write used instead of print() to preserve progress bar
         plt.close(figure)
 
         results.append({ "combo": grid_pt, "size": size,
-                         "per_channel": per_channel, "mse": mse })
-        tqdm.write(f"    joint MSE = { mse :.4g}   size = { size :.2e}")
+                         "per_channel": per_channel, "SW1": SW1 })
+        tqdm.write(f"    SW1 = { SW1 :.4g}   size = { size :.2e}")
 
     report(results, outdir)
 
