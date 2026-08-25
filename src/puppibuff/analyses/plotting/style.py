@@ -6,7 +6,7 @@ from cycler import cycler
 
 #-----------------------------------------------------------------------------
 
-DOC_WIDTH = 0.8 * 6.3                         # Typical article `\the\textwidth` / 72.28
+DOC_WIDTH = 0.9 * 6.3                         # Typical article `\the\textwidth` / 72.28
 LEGEND_LOC = "outside upper right"
 
 #--- Style defaults ---

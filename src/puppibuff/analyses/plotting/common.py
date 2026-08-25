@@ -5,7 +5,7 @@ from .style import DOC_WIDTH, LEGEND_LOC
 
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator, NullFormatter
+from matplotlib.ticker import MaxNLocator
 from scipy.stats import gaussian_kde
 
 from typing import Callable
@@ -178,7 +178,7 @@ def plot_ratio(rax: Axes, x: NDArray, sample_over_target: NDArray,
     rax.set_ylim(*_ratio_limits(sample_over_target, training_cut))
 
 
-XPAD = 0.02                             # Fraction of the span left blank at each end
+XPAD = 0.1                             # Fraction of the span left blank at each end
 
 def set_xlims(ax: Axes, low: float, high: float) -> None:
     """Pin the x axis to the data, with a little air at each end. Autoscaling
@@ -305,9 +305,6 @@ def finalise(fig: Figure, axes: NDArray, columns: list[str],
     for column, name in enumerate(columns):
         if name in LOG_COLUMNS:
             axes[0, column].set_yscale("log")
-
-                                        # No minor ticks
-            axes[0, column].yaxis.set_minor_formatter(NullFormatter())
 
     share_labels(axes)
 
