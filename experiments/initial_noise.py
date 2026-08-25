@@ -1,5 +1,6 @@
-from puppibuff.analyses import plot_histograms
+from puppibuff.analyses import plot_histograms, plot_contours
 from puppibuff.configs import FlatPuppiJetConfig
+from puppibuff import FlowBDT, build_trainds
 
 import numpy as np
 
@@ -25,17 +26,25 @@ def main():
     config = FlatPuppiJetConfig()
     config.n_events = 500_000
 
+    data = config.dataset()
+    codec = config.codec()
+    codec.fit(data)
+
+    x1 = codec.encode(data[:config.n_events])
+
     rng = np.random.default_rng()
     x0 = noise(rng, config.n_events)
+    x0[:, 2] = x1[:, 2]
 
-    data, codec, model, x, y = config.setup(x0 = x0)
+    x, y = build_trainds(x1, config.n_steps, x0)
 
+    model = FlowBDT()
     model.fit(x, y)
 
     x0 = noise(rng, config.n_events)
     samples = codec.decode(model.sample(500_000, x0 = x0))
 
-    figure = plot_histograms(
+    figure = plot_contours(
         data, samples, n_events = config.n_events,
     )
 

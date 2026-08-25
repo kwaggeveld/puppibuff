@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from puppibuff.analyses import channel_wasserstein, sliced_wasserstein, plot_histograms
-from puppibuff.configs import FlatPuppiJetConfig
-from puppibuff.datasets import FlatPuppiJet
+from puppibuff.configs import Config, MultiplicityL1PuppiConfig
+from puppibuff.datasets import Dataset
 from puppibuff.flowbdt import FlowBDT
 
 from itertools import product
@@ -11,17 +11,21 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
+from numpy.typing import NDArray
+
 #-----------------------------------------------------------------------------
 
-# Hyperparameter gridsearch over FlatPuppiJet. Every combination in the
-# Cartesian product of the axes below is trained, sampled and scored against the
-# data, one figure per combination. Runs sequentially.
+# Hyperparameter gridsearch over `BASE_CONFIG`'s dataset. Every combination in
+# the Cartesian product of the axes below is trained, sampled and scored against
+# the data, one figure per combination. Runs sequentially.
 
-MAX_DEPTH    = [ 2, 3, 4, 6 ]           # XGBoost tree depth
-N_ESTIMATORS = [ 10, 20, 50, 100 ]      # Trees per BDT
-S1PHI        = [ False, True ]          # Encode phi as (sin, cos) vs. one normalised channel
+BASE_CONFIG = MultiplicityL1PuppiConfig # Dataset + codec every grid point shares
+
+MAX_DEPTH    = [ 3, 4, 6 ]              # XGBoost tree depth
+N_ESTIMATORS = [ 20, 50, 100 ]          # Trees per BDT
+S1PHI        = [ False ]                # Encode phi as (sin, cos) vs. one normalised channel
 N_STEPS      = [ 5, 10, 15 ]            # Flow-matching discretisation
-N_EVENTS     = [ 500_000, 2_000_000 ]   # Training-set size; None => whole dataset
+N_EVENTS     = [ 500_000 ]              # Training-set size; None => whole dataset
 
 N_SAMPLES    = 1_000_000                # Events drawn from each trained model
 
@@ -36,12 +40,38 @@ NEST_BY = [ "s1phi", "n_steps" ]        # Nest output figures one subdir per axi
 #-----------------------------------------------------------------------------
 
 def make_config(max_depth: int, n_estimators: int, s1phi: bool,
-                n_steps: int, n_events: int | None) -> FlatPuppiJetConfig:
+                n_steps: int, n_events: int | None) -> Config:
     """Return config specific to one grid point."""
-    config = FlatPuppiJetConfig(n_steps = n_steps, n_events = n_events, s1phi = s1phi)
+    config = BASE_CONFIG(n_steps = n_steps, n_events = n_events, s1phi = s1phi)
     config.tree_config["max_depth"]    = max_depth
     config.tree_config["n_estimators"] = n_estimators
     return config
+
+
+def unpad(target: Dataset, sample: dict[str, NDArray]) -> tuple[
+        dict[str, NDArray], dict[str, NDArray], list[str]]:
+    """Return `(real, gen, joint)`: the per-channel arrays the 1-D metrics
+    consume, plus the channels forming the joint cloud.
+
+    Padded jet data (the sides that carry `real`) is flattened to its genuine
+    constituents, with per-jet multiplicity alongside as its own channel — one
+    value per jet against one per constituent, so it is scored marginally but
+    left out of the joint cloud, whose channels must stay elementwise aligned.
+    Flat data is already in that form and passes straight through.
+    """
+    if "real" not in sample:
+        joint = target.channels()
+        return { channel: target[channel] for channel in joint }, sample, joint
+
+    joint = [ channel for channel in target.channels() if channel != "real" ]
+
+    real = { channel: target[channel][target["real"] > .5] for channel in joint }
+    gen  = { channel: sample[channel][sample["real"] > .5] for channel in joint }
+
+    real["multiplicity"] = target["real"].sum(axis = 1)
+    gen["multiplicity"]  = sample["real"].sum(axis = 1)
+
+    return real, gen, joint
 
 
 def model_size(model: FlowBDT, n_estimators: int, max_depth: int) -> int:
@@ -129,7 +159,7 @@ def main():  # NB: tqdm.write used instead of print() to preserve progress bar
     grid  = list(product(MAX_DEPTH, N_ESTIMATORS, S1PHI, N_STEPS, N_EVENTS))
     results = []
 
-    data = FlatPuppiJet()               # Shared across runs
+    data = BASE_CONFIG.dataset()        # Shared across runs
 
     for index, grid_pt in enumerate(tqdm(grid, desc = "Gridsearch"), start = 1):
         max_depth, n_estimators, s1phi, n_steps, n_events = grid_pt
@@ -145,15 +175,16 @@ def main():  # NB: tqdm.write used instead of print() to preserve progress bar
 
                                         # Per-channel Wasserstein is a marginal
                                         # diagnostic, sliced Wasserstein ranks models
-        per_channel = { channel: channel_wasserstein(data[channel], samples[channel])
-                        for channel in data.channels() }
-        SW1  = sliced_wasserstein(data, samples)
+        real, gen, joint = unpad(data, samples)
+
+        per_channel = { channel: channel_wasserstein(real[channel], gen[channel])
+                        for channel in real }
+        SW1  = sliced_wasserstein(real, gen, joint)
         size = model_size(model, n_estimators, max_depth)
 
                                         # Only sampled vs target distributions
         figure = plot_histograms(data, samples, n_events = None)
         figure.suptitle(suptitle(grid_pt, size, per_channel, SW1), fontsize = 11)
-        figure.subplots_adjust(top = 0.86)      # Room for the two-line suptitle
 
         path = outdir / output_path(grid_pt)
         path.parent.mkdir(parents = True, exist_ok = True)

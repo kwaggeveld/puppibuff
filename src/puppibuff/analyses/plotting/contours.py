@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from ...datasets import Dataset
-from .common import (LOG_CHANNELS, SAMPLE, SAMPLE_CONTOUR, TARGET, TARGET_CONTOUR,
-                     TRAIN, TRAIN_CONTOUR, channel_data, kde)
+from .common import (DOC_WIDTH, LOG_CHANNELS, SAMPLE, SAMPLE_CONTOUR, TARGET,
+                     TARGET_CONTOUR, TRAIN, TRAIN_CONTOUR, channel_data,
+                     figure_legend, kde, label)
 
 from itertools import combinations
 
@@ -74,11 +75,6 @@ def _rescale(names: tuple[str, ...], series: tuple[NDArray, ...]) -> tuple[NDArr
                  for name, values in zip(names, series))
 
 
-def _axis_label(name: str) -> str:
-    """Name the plotted variable, which is the rescaled one for `LOG_CHANNELS`."""
-    return f"log1p({ name })" if name in LOG_CHANNELS else name
-
-
 def _pair_panel(
     ax: Axes,
     pair: tuple[str, str],
@@ -108,9 +104,10 @@ def _pair_panel(
 
     _contour(ax, grid, _joint_density(sample, grid), **SAMPLE_CONTOUR)
 
-    ax.set_xlabel(_axis_label(pair[0]))
-    ax.set_ylabel(_axis_label(pair[1]))
-    ax.grid(True, alpha = 0.3)
+                                        # The axes are the rescaled variables, so
+                                        # `log` for the ones `_rescale` mapped
+    ax.set_xlabel(label(pair[0], pair[0] in LOG_CHANNELS))
+    ax.set_ylabel(label(pair[1], pair[1] in LOG_CHANNELS))
 
 
 def plot_contours(
@@ -119,6 +116,7 @@ def plot_contours(
     channels: list[str] | None = None,
     n_events: int | None = None,        # Cut => overlay the trained-on subset
     points: int = 100,                  # KDE evaluation-grid resolution per axis
+    width: float = DOC_WIDTH,           # Figure width in inches: your `\textwidth`
 ) -> Figure:
     """Make pairwise joint-KDE contour plots. One panel per channel pair, each
     contour enclosing a fixed fraction of the joined probability mass.
@@ -126,7 +124,11 @@ def plot_contours(
     truth, sampled, train = channel_data(target, sample, channels, n_events)
     pairs = list(combinations(truth, 2))
 
-    fig, axes = plt.subplots(1, len(pairs), figsize = (5 * len(pairs), 5), squeeze = False)
+                                        # Square panels: neither axis of a joint
+                                        # density has priority over the other.
+    fig, axes = plt.subplots(1, len(pairs), figsize = (width, width / len(pairs)),
+                             squeeze = False)
+    fig.set_layout_engine("constrained")
 
     for ax, pair in zip(axes[0], pairs):
         _pair_panel(ax, pair,
@@ -142,8 +144,11 @@ def plot_contours(
     if train is not None:               # Cut of dataset given?
         sets.append((TRAIN_CONTOUR, TRAIN))
 
-    fig.legend(handles = [ Line2D([], [], color = style["colors"], label = kwargs["label"],
-                                  linestyle = style["linestyles"])
-                           for style, kwargs in sets ])
+                                        # Reconstruct figure legend
+    proxies = [ Line2D([], [], color = style["colors"], linestyle = style["linestyles"],
+                       linewidth = style["linewidths"])
+                for style, _ in sets ]
+
+    figure_legend(fig, proxies, [ kwargs["label"] for _, kwargs in sets ])
 
     return fig

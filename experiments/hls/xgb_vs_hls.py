@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from puppibuff.analyses import plot_histograms
-from puppibuff.configs import FlatPuppiJetConfig
 from puppibuff.hls import constants, FlowHLS
-from puppibuff.utils import initial_noise
+from puppibuff.utils import from_zip, initial_noise
 
 import sys
 import time
@@ -39,23 +38,16 @@ def build_hls(model, codec, workdir: str, reuse: bool) -> FlowHLS:
     return hls
 
 
-def main():                             # Pass directory for the HLS project(s)
-    if len(sys.argv) < 2:               # as argument 1
-        sys.exit(f"Usage: {sys.argv[0]} [workdir]")
+def main():                             # HLS project directory and the trained
+    if len(sys.argv) < 3:               # archive both paths sample from
+        sys.exit(f"Usage: {sys.argv[0]} <workdir> <model>")
 
     workdir = sys.argv[1]
 
     reuse = Path(workdir).exists() and any(Path(workdir).rglob("bdt_s*_g*.json"))
 
-    config = FlatPuppiJetConfig(n_steps = 15,
-                                n_events = 2_000_000)
-    config.tree_config["n_estimators"] = 50
-    config.tree_config["max_depth"] = 4
-
-    data, codec, model, x, y = config.setup()
-
-    if not reuse:
-        model.fit(x, y)
+    config, codec, model = from_zip(sys.argv[2])
+    data = config.dataset()
 
     hls = build_hls(model, codec, workdir, reuse)
 
@@ -64,27 +56,23 @@ def main():                             # Pass directory for the HLS project(s)
 
     x0 = initial_noise((N_SAMPLES, hls.n_channels))
 
-    samplers = [("hls", hls, N_HLS)]
-    if not reuse:
-        samplers.insert(0, ("xgboost", model, N_SAMPLES))                     # type: ignore
+    hls_sample = timed(f"Sampling {N_HLS} with hls", hls.sample,
+                       x0 = x0[:N_HLS], solver = constants.SAMPLE_SOLVER)
 
-    for label, sampler, n_samples in samplers:
-                                        # Pinned, not defaulted: the merged design
-                                        # has `constants.SAMPLE_SOLVER` compiled into
-                                        # it, so an A/B against XGBoost is only
-                                        # apples-to-apples on that same scheme
-        sample = timed(f"Sampling {n_samples} with {label}",
-                       sampler.sample, x0 = x0[:n_samples],
-                       solver = constants.SAMPLE_SOLVER)
+    xgb_sample = timed(f"Sampling {N_SAMPLES} with xgboost", model.sample,
+                       x0 = x0, solver = constants.SAMPLE_SOLVER)
 
-        figure = plot_histograms(
-            data, codec.decode(sample), n_events = config.n_events,
-        )
-        figure.suptitle(label)
+                                        # HLS takes primary slot, ratios read
+                                        # HLS/target and HLS/xgboost
+    figure = plot_histograms(
+        data, codec.decode(hls_sample),
+        overlay = codec.decode(xgb_sample),
+        labels  = { "Output": "HLS", "Training": "XGBoost" },
+    )
 
-        path = outdir / f"{Path(workdir).name}_{label}.pdf"
-        figure.savefig(path, format = "pdf")
-        print(f"Wrote {path}", flush = True)
+    path = outdir / f"{Path(workdir).name}_xgb_vs_hls.pdf"
+    figure.savefig(path, format = "pdf")
+    print(f"Wrote {path}", flush = True)
 
 
 if __name__ == "__main__":

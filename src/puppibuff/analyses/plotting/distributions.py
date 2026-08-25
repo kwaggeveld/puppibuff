@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from ...datasets import Dataset
-from .common import (LOG_CHANNELS, SAMPLE, SAMPLE_C, TARGET, TRAIN, TRAIN_C,
-                     finalise, finish_panel, kde, plot_grid, plot_ratio, ratio)
+from .common import (DOC_WIDTH, LOG_CHANNELS, SAMPLE, SAMPLE_C, TARGET, TRAIN, TRAIN_C,
+                     finalise, finish_panel, kde, set_xlims, plot_grid, plot_ratio, ratio)
 
 import numpy as np
 
@@ -44,7 +44,8 @@ def _panel(ax: Axes, rax: Axes, name: str, target: NDArray, sample: NDArray,
         ratio_train = _density_ratio(dens_sample, dens_train)
 
     plot_ratio(rax, grid, _density_ratio(dens_sample, dens_target), ratio_train, step = False)
-    finish_panel(ax, rax, name, "Probability density")
+    finish_panel(ax, rax, name, "Density")
+    set_xlims(ax, grid[0], grid[-1])
 
 
 def plot_distributions(
@@ -53,12 +54,12 @@ def plot_distributions(
     channels: list[str] | None = None,
     n_events: int | None = None,        # Cut => overlay the trained-on subset
     points: int = 200,                  # KDE evaluation-grid resolution
+    width: float = DOC_WIDTH,           # Figure width in inches: your `\textwidth`
 ) -> Figure:
     """Kernel-density-estimate distributions: the smooth-curve counterpart of
     `plot_histograms`, approximating each channel's PDF with a Gaussian KDE.
     """
-    fig, axes, columns = plot_grid(target, sample, channels, n_events, _panel, points)
-    finalise(fig, axes, columns)
+    fig, axes, columns = plot_grid(target, sample, channels, n_events, _panel, points, width)
 
                                         # A KDE never reaches 0, so its tails
                                         # break a log axis' autoscale. Pin each
@@ -69,5 +70,7 @@ def plot_distributions(
             ax   = axes[0, column]
             peak = ax.dataLim.y1
             ax.set_ylim(peak * 1e-8, peak * 2)
+
+    finalise(fig, axes, columns)
 
     return fig

@@ -3,7 +3,7 @@ from puppibuff.configs import FlatPuppiJetConfig
 
 
 def main():
-    config = FlatPuppiJetConfig(n_events = None)
+    config = FlatPuppiJetConfig()
 
     data, codec, model, x, y = config.setup()
 

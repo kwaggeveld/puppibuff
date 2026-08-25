@@ -13,6 +13,16 @@ from numpy.typing import NDArray
 
 #-----------------------------------------------------------------------------
 
+Source = Dataset | dict[str, NDArray]   # Anything indexable by channel name
+
+
+def _channels(data: Source, channels: list[str] | None) -> list[str]:
+    """Explicit channel list, else every channel `data` carries."""
+    if channels is not None: 
+        return channels
+    return data.channels() if isinstance(data, Dataset) else list(data)
+
+
 def channel_mse(real: NDArray, gen: NDArray, bins: int = 75) -> float:
     """Compute MSE error between `real` and `gen` histograms."""
     edges = np.histogram_bin_edges(np.concatenate([real, gen]), bins = bins)
@@ -23,13 +33,13 @@ def channel_mse(real: NDArray, gen: NDArray, bins: int = 75) -> float:
 
 
 def total_mse(
-    data: Dataset,
+    data: Source,
     gen: dict[str, NDArray],
     channels: list[str] | None = None,
     bins: int = 75,
 ) -> float:
     """Compute mean MSE loss across all channels."""
-    channels = channels or data.channels()
+    channels = _channels(data, channels)
 
     losses = [
         channel_mse(data[channel], gen[channel], bins = bins)
@@ -47,7 +57,7 @@ def channel_wasserstein(real: NDArray, gen: NDArray) -> float:
 #--- Joint metric (correlation-aware) ---
 
 def joint_mse(
-    data: Dataset,
+    data: Source,
     gen: dict[str, NDArray],
     channels: list[str] | None = None,
     bins: int = 20,
@@ -57,7 +67,7 @@ def joint_mse(
     Its absolute value depends on `bins`, but at a fixed `bins` it is 
     deterministic and is appropriate to rank models with.
     """
-    channels = channels or data.channels()
+    channels = _channels(data, channels)
                                         # (N, d) point clouds
     real = np.stack([ data[channel] for channel in channels ], axis = 1)
     fake = np.stack([ gen[channel]  for channel in channels ], axis = 1)
@@ -83,7 +93,7 @@ def _subsample(cloud: NDArray, n: int, rng: np.random.Generator) -> NDArray:
 
 
 def sliced_wasserstein(
-    data: Dataset,
+    data: Source,
     gen: dict[str, NDArray],
     channels: list[str] | None = None,
     n_projections: int = 128,
@@ -95,7 +105,7 @@ def sliced_wasserstein(
     Channels are standardised to prevent `pt`'s ~1000 GeV range from dominating
     the metric. Both clouds are subsampled to `max_events` (`None` for all).
     """
-    channels = channels or data.channels()
+    channels = _channels(data, channels)
                                         # (N, d) point clouds, as `joint_mse` builds
     real = np.stack([ data[channel] for channel in channels ], axis = 1)
     fake = np.stack([ gen[channel]  for channel in channels ], axis = 1)
@@ -149,7 +159,7 @@ def _quantise(values: NDArray, step: float) -> NDArray:
 
 
 def classifier_two_sample_test(
-    data: Dataset,
+    data: Source,
     gen: dict[str, NDArray],
     channels: list[str] | None = None,
     test_size: float = .2,
@@ -165,7 +175,7 @@ def classifier_two_sample_test(
     the classifier learns to distinguish based on quantisation. On `FlatPuppiJet` 
     it costs 0.43 of AUC: `pt` reads 0.92 raw vs 0.56 snapped.
     """
-    channels = channels or data.channels()
+    channels = _channels(data, channels)
                                         # (N, d) point clouds, as `joint_mse` builds
     real = np.stack([ data[channel] for channel in channels ], axis = 1)
     fake = np.stack([ gen[channel]  for channel in channels ], axis = 1)
