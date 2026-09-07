@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+title: "puppibuff: BDT-based flow matching for on-the-fly event generation on FPGA firmware"
+type: software
+authors:
+  - family-names: Waggeveld
+    given-names: Koen
+    email: k.c.waggeveld@student.rug.nl
+    affiliation: University of Groningen
+version: "1.0"
+date-released: "2026-08-28"
+license: Apache-2.0
+repository-code: "https://github.com/kwaggeveld/puppibuff"
+url: "https://github.com/kwaggeveld/puppibuff/releases/tag/v1.0"

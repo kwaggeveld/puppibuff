@@ -19,13 +19,13 @@ A significantly expanded L1 Scouting system is being designed for the CMS Phase 
 `puppibuff` combines that architecture with [conifer](https://github.com/thesps/conifer), already used at CMS for fast BDT inference on L1 Trigger FPGAs, so that the full generator runs on the L1T's FPGAs. 
 The result is an on-chip generator that generates PUPPI jet kinematics at 360 MHz, which can be used to stress-test the upgraded Scouting system.
 
-This repository was developed during the CERN Summer Student Programme 2026. Corresponding report: to be added.
+This repository was developed during the CERN Summer Student Programme 2026.
 
 ## Repository structure
 
 ```
 Dataset }
-  &      } = Config -> .setup()  ->  FlowBDT.fit()  ->  .sample()  ->  Codec.decode  ->  analyses
+  &      } = Config -> .setup()  ->  FlowBDT.fit()  ->  .sample()  ->  Codec.decode()
 Codec   }
 ```
 
@@ -53,6 +53,10 @@ Each `Dataset` reads its input directory from an environment variable (`PUPPIJET
 ## Quick start
 
 Coming soon...
+
+## Related works
+
+Waggeveld, K. C. (2026). Ultra-Ultra-Fast Flow Matching for On-the-Fly Event Generation. CERN. https://doi.org/10.17181/n9hgk-sd971
 
 ## Contact
 
