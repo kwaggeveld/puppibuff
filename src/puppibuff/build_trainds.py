@@ -8,8 +8,6 @@ from numpy.typing import NDArray
 
 #-----------------------------------------------------------------------------
 
-EPSILON = 1e-3
-
 class Paths:
     """Array-like of shape (n_steps, N, n_channels) for lazy
     computation of each step xt on the path between x0 and x1"""
@@ -37,6 +35,6 @@ def build_trainds(
         
     x0 = initial_noise(x1.shape) if x0 is None else x0
 
-    ts = np.linspace(EPSILON, 1, num = n_steps, dtype = np.float32)
+    ts = np.linspace(0, 1, num = n_steps, dtype = np.float32)
 
     return Paths(x0, x1, ts), x1 - x0
