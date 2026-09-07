@@ -30,7 +30,7 @@ DEFAULT_TREE_CONFIG = {
 
 @dataclass
 class Config(ABC):
-    dataset: ClassVar[type[Dataset]]# Fixed by each concrete config
+    dataset: ClassVar[type[Dataset]]    # Fixed by each concrete config
     codec:   ClassVar[type[Codec]]
 
     n_steps:  int = 15

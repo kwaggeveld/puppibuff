@@ -12,7 +12,7 @@ N_SAMPLES = 500_000
 
 def main():
     if len(sys.argv) < 2:
-        sys.exit(f"Usage: {sys.argv[0]} <model>")
+        sys.exit(f"Usage: { sys.argv[0] } <model>")
 
     config, codec, model = from_zip(sys.argv[1])
 

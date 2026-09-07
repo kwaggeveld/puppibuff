@@ -8,7 +8,7 @@ from pathlib import Path
 
 # Histogram plots from pretrained model
 
-N_SAMPLES = 500_000
+N_SAMPLES = 29_000_000
 
 def main():
     if len(sys.argv) < 2:
@@ -19,12 +19,12 @@ def main():
     data    = config.dataset()
     samples = codec.decode(model.sample(N_SAMPLES))
 
-    figure = plot_histograms(data, samples, n_events = config.n_events, bins = 50)
+    figure = plot_histograms(data, samples)
 
     outdir = Path(__file__).resolve().parent / "output" / Path(__file__).stem
     outdir.mkdir(parents = True, exist_ok = True)
 
-    file = outdir / f"{ Path(sys.argv[1]).stem }.pdf"
+    file = outdir / f"{ Path(sys.argv[1]).stem }_{ N_SAMPLES :,}.pdf"
     figure.savefig(file, format = "pdf")
 
     print(f"Wrote { file }")

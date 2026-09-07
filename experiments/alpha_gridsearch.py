@@ -3,32 +3,24 @@ from puppibuff.configs import FlatPuppiJetConfig
 
 from puppibuff.weighting import pt_power_weights
 
-import sys
-
 #-----------------------------------------------------------------------------
 
+ALPHAS = [ 0, 2, 4 ]
+
 def main():
-    if len(sys.argv) != 2:
-        sys.exit(f"Usage: python3 {sys.argv[0]} <alpha>")
-
-    alpha = float(sys.argv[1])
-
-    config = FlatPuppiJetConfig(n_events = None)    # Train on the entire dataset
+    config = FlatPuppiJetConfig()
 
     data, codec, model, x, y = config.setup()
 
-    weights = pt_power_weights(data['pt'][:config.n_events], alpha = alpha)
-    model.fit(x, y, sample_weights = weights)
+    for alpha in ALPHAS:
+        weights = pt_power_weights(data['pt'][:config.n_events], alpha = alpha)
+        model.fit(x, y, sample_weights = weights)
 
-    raw_samples = model.sample(500_000)
-    samples = codec.decode(raw_samples)
+        raw_samples = model.sample(500_000)
+        samples = codec.decode(raw_samples)
 
-    loss = total_mse(data, samples)
-    pt_loss = channel_mse(data['pt'], samples['pt'])
-    print(f"alpha = {alpha:g}  ->  total_mse = {loss:.6g}  pt_mse = {pt_loss:.6g}")
-
-    figure = plot_histograms(data, samples, n_events = config.n_events)
-    figure.savefig(f"alpha_gridsearch_alpha{alpha:g}.pdf", format = "pdf")
+        figure = plot_histograms(data, samples, channels = ["pt"], width = 6.3 * 0.3)
+        figure.savefig(f"alpha_gridsearch_alpha{alpha:g}.pdf", format = "pdf")
 
 
 if __name__ == "__main__":
