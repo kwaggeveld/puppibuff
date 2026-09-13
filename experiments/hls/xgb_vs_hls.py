@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from puppibuff.analyses import plot_histograms
 from puppibuff.hls import constants, FlowHLS
-from puppibuff.utils import from_zip, initial_noise
+from puppibuff.utils import from_zip, initial_noise, output_dir
 
 import sys
 import time
@@ -51,9 +51,6 @@ def main():                             # HLS project directory and the trained
 
     hls = build_hls(model, codec, workdir, reuse)
 
-    outdir = Path(__file__).resolve().parent / Path(__file__).stem
-    outdir.mkdir(exist_ok = True)
-
     x0 = initial_noise((N_SAMPLES, hls.n_channels))
 
     hls_sample = timed(f"Sampling {N_HLS} with hls", hls.sample,
@@ -70,7 +67,7 @@ def main():                             # HLS project directory and the trained
         labels  = { "Output": "HLS", "Training": "XGBoost" },
     )
 
-    path = outdir / f"{Path(workdir).name}_xgb_vs_hls.pdf"
+    path = output_dir(__file__) / f"{Path(workdir).name}_xgb_vs_hls.pdf"
     figure.savefig(path, format = "pdf")
     print(f"Wrote {path}", flush = True)
 

@@ -1,5 +1,5 @@
 from puppibuff.analyses import plot_histograms
-from puppibuff.utils import from_zip
+from puppibuff.utils import from_zip, output_dir
 
 import sys
 from pathlib import Path
@@ -21,10 +21,7 @@ def main():
 
     figure = plot_histograms(data, samples)
 
-    outdir = Path(__file__).resolve().parent / "output" / Path(__file__).stem
-    outdir.mkdir(parents = True, exist_ok = True)
-
-    file = outdir / f"{ Path(sys.argv[1]).stem }_{ N_SAMPLES :,}.pdf"
+    file = output_dir(__file__) / f"{ Path(sys.argv[1]).stem }_{ N_SAMPLES :,}.pdf"
     figure.savefig(file, format = "pdf")
 
     print(f"Wrote { file }")

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from puppibuff.analyses import plot_histograms
-from puppibuff.utils import from_zip
+from puppibuff.utils import from_zip, output_dir
 
 import sys
 from pathlib import Path
@@ -29,10 +29,7 @@ def main():                             # The `.npz` `sample.py` wrote, and the
         labels  = { "Output": "HLS", "Training": "Python" },
     )
 
-    outdir = Path(__file__).resolve().parent / "output" / Path(__file__).stem
-    outdir.mkdir(parents = True, exist_ok = True)
-
-    path = outdir / f"{ Path(sys.argv[1]).stem }.pdf"
+    path = output_dir(__file__) / f"{ Path(sys.argv[1]).stem }.pdf"
     figure.savefig(path, format = "pdf")
 
     print(f"Wrote { path }")

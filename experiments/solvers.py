@@ -5,9 +5,7 @@ from puppibuff.datasets import Dataset
 from puppibuff.flowbdt import FlowBDT
 from puppibuff.solvers import (ab2_solve, euler_solve, heun_solve,
                                midpoint_solve, Solver)
-from puppibuff.utils import initial_noise
-
-from pathlib import Path
+from puppibuff.utils import initial_noise, output_dir
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -89,9 +87,7 @@ def report(runs: list[tuple], losses: dict[str, list[dict]], n_groups: int) -> N
 
 
 def main():
-                                        # Create output directory
-    outdir = Path(__file__).resolve().parent / "output" / Path(__file__).stem
-    outdir.mkdir(exist_ok = True)
+    outdir = output_dir(__file__)
 
     config = make_config(N_STEPS)
 

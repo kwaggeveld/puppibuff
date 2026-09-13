@@ -4,6 +4,7 @@ from puppibuff.analyses import channel_wasserstein, sliced_wasserstein, plot_his
 from puppibuff.configs import Config, MultiplicityL1PuppiConfig
 from puppibuff.datasets import Dataset
 from puppibuff.flowbdt import FlowBDT
+from puppibuff.utils import output_dir
 
 from itertools import product
 from pathlib import Path
@@ -152,9 +153,7 @@ def report(results: list[dict], outdir: Path) -> None:
 
 
 def main():  # NB: tqdm.write used instead of print() to preserve progress bar
-                                        # Create output directory
-    outdir = Path(__file__).resolve().parent / "output" / Path(__file__).stem
-    outdir.mkdir(parents = True, exist_ok = True)
+    outdir = output_dir(__file__)
 
     grid  = list(product(MAX_DEPTH, N_ESTIMATORS, S1PHI, N_STEPS, N_EVENTS))
     results = []

@@ -1,16 +1,16 @@
 from puppibuff.configs import FlatPuppiJetConfig
 from puppibuff.hls import FlowHLS
+from puppibuff.utils import output_dir
 
+from pathlib import Path
 from time import time
 import os
 
-OUTPUT_DIR = "compile_timings"
-
-def timed_compile(model, codec, output_dir: str, n_threads: int | None) -> float:
-    """Convert and write `model` into a fresh `output_dir`, then time the
+def timed_compile(model, codec, project: Path, n_threads: int | None) -> float:
+    """Convert and write `model` into a fresh `project` directory, then time the
     compile alone.
     """
-    hls = FlowHLS.convert(model, output_dir = output_dir)
+    hls = FlowHLS.convert(model, output_dir = str(project))
     hls.write(codec)
 
     begin = time()
@@ -18,6 +18,8 @@ def timed_compile(model, codec, output_dir: str, n_threads: int | None) -> float
     return time() - begin
 
 def main():
+    outdir = output_dir(__file__)
+
     config = FlatPuppiJetConfig(n_steps = 4,
                                 n_events = 100_000)
     config.tree_config["n_estimators"] = 20
@@ -28,11 +30,11 @@ def main():
     model.fit(x, y)
 
     print("Compiling with a single thread...")
-    elapsed_single = timed_compile(model, codec, f"{OUTPUT_DIR}_single", n_threads = 1)
+    elapsed_single = timed_compile(model, codec, outdir / "single", n_threads = 1)
     print("Elapsed time: ", elapsed_single)
 
     print(f"Compiling with {os.cpu_count()} threads...")
-    elapsed_multi = timed_compile(model, codec, f"{OUTPUT_DIR}_multi", n_threads = None)
+    elapsed_multi = timed_compile(model, codec, outdir / "multi", n_threads = None)
     print("Elapsed time: ", elapsed_multi)
 
 

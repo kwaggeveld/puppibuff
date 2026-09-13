@@ -11,8 +11,8 @@ import numpy as np
 from numpy.typing import NDArray
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:                       # Runtime imports are deferred into
-    from .codecs import Codec           # from_zip: flowbdt imports this module
+if TYPE_CHECKING:                       # Runtime imports are done in `from_zip`.
+    from .codecs import Codec           # `flowbdt` imports this file -> circular
     from .configs import Config
     from .flowbdt import FlowBDT
 
@@ -21,6 +21,17 @@ if TYPE_CHECKING:                       # Runtime imports are deferred into
 CONFIG_FILE = "config"                  # Members to_zip/from_zip agree on
 CODEC_FILE  = "codec"
 MODEL_FILE  = "flowbdt"
+
+def output_dir(file: str) -> Path:
+    """`file`'s directory / "output" / `file`'s stem, created if absent.
+
+    Scripts call this as `output_dir(__file__)`.
+    """
+    path = Path(file).resolve().parent / "output" / Path(file).stem
+    path.mkdir(parents = True, exist_ok = True)
+
+    return path
+
 
 def fill_template(package: str, name: str, /, **fields) -> str:
     """Read `package`'s template `firmware/name` and substitute tokens `**field`

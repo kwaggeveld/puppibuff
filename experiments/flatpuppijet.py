@@ -1,5 +1,6 @@
 from puppibuff.analyses import plot_histograms
 from puppibuff.configs import FlatPuppiJetConfig
+from puppibuff.utils import output_dir
 
 
 def main():
@@ -17,7 +18,7 @@ def main():
         data, samples, n_events = config.n_events,
     )
 
-    figure.savefig("figures/puppijet_full_d6_n50.pdf")
+    figure.savefig(output_dir(__file__) / "puppijet_full_d6_n50.pdf")
 
 
 if __name__ == "__main__":

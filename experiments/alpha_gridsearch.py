@@ -1,6 +1,7 @@
 from puppibuff.analyses import total_mse, channel_mse, plot_histograms
 from puppibuff.configs import FlatPuppiJetConfig
 
+from puppibuff.utils import output_dir
 from puppibuff.weighting import pt_power_weights
 
 #-----------------------------------------------------------------------------
@@ -8,6 +9,8 @@ from puppibuff.weighting import pt_power_weights
 ALPHAS = [ 0, 2, 4 ]
 
 def main():
+    outdir = output_dir(__file__)
+
     config = FlatPuppiJetConfig()
 
     data, codec, model, x, y = config.setup()
@@ -20,7 +23,7 @@ def main():
         samples = codec.decode(raw_samples)
 
         figure = plot_histograms(data, samples, channels = ["pt"], width = 6.3 * 0.3)
-        figure.savefig(f"alpha_gridsearch_alpha{alpha:g}.pdf", format = "pdf")
+        figure.savefig(outdir / f"alpha{alpha:g}.pdf", format = "pdf")
 
 
 if __name__ == "__main__":
