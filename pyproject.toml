@@ -1,6 +1,17 @@
+[build-system]                          # Required for `uv`
+requires = ["setuptools >= 77"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "puppibuff"
-version = "0.0.0"
+version = "1.0.0"
+description = "BDT-based flow matching for on-the-fly event generation on FPGA firmware"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">= 3.11"
+authors = [
+    { name = "Koen Waggeveld", email = "k.c.waggeveld@student.rug.nl" },
+]
 dependencies = [
     "numpy",
     "matplotlib",
@@ -19,6 +30,14 @@ scripts = [
     "awkward",
 ]
 
+[project.urls]
+Repository = "https://github.com/kwaggeveld/puppibuff"
+
+[dependency-groups]
+dev = [
+    "mypy >= 2.3.1",
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
@@ -27,4 +46,4 @@ where = ["src"]
 "puppibuff.codecs" = ["firmware/*"]
 
 [tool.mypy]
-disable_error_code = ["import-untyped", "import-not-found"]
+disable_error_code = ["import-untyped"]
