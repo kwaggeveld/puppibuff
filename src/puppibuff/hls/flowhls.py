@@ -310,6 +310,7 @@ class FlowHLS:
         n_samples: int | None = None,
         x0: NDArray | None = None,
         solver: Solver = ab2_solve,
+        rng: np.random.Generator | None = None,
     ) -> NDArray:
         """Starting from noise, provided or sampled here, integrate the learnt
         vector field to generate a new event.
@@ -318,7 +319,7 @@ class FlowHLS:
         merged design only supports `midpoint_solve` integration for now.
         """
         shape = None if n_samples is None else (n_samples, self.n_channels)
-        x0 = initial_noise(shape, x0)
+        x0 = initial_noise(shape, x0, rng)
 
         if self.merged:
             if solver is not c.SAMPLE_SOLVER:

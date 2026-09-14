@@ -8,6 +8,7 @@ from ..flowbdt import FlowBDT
 from abc import ABC
 from dataclasses import dataclass, field, asdict
 import json
+import numpy as np
 
 from numpy.typing import NDArray
 from typing import ClassVar
@@ -36,6 +37,8 @@ class Config(ABC):
     n_steps:  int = 15
     n_events: int | None = 500_000      # None => train on the entire dataset
 
+    seed: int | None = None             # None => fresh
+
     s1phi: bool = False                 # Encode phi -> (sin, cos) rather than
                                         # normalising it into one channel
 
@@ -60,12 +63,14 @@ class Config(ABC):
 
         codec = self.codec(self.s1phi)
         codec.fit(data)
+        
+        train_rng, sample_rng = np.random.default_rng(self.seed).spawn(2)
 
         x1 = codec.encode(data[:self.n_events])
-        x, y = build_trainds(x1, self.n_steps, x0)
+        x, y = build_trainds(x1, self.n_steps, x0, train_rng)
 
         sizes = codec.group_sizes() if self.multi_output else None
-        model = FlowBDT(self.tree_config, sizes)
+        model = FlowBDT(self.tree_config, sizes, sample_rng)
 
         return data, codec, model, x, y
 

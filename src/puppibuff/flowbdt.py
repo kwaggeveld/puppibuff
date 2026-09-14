@@ -19,9 +19,11 @@ class FlowBDT():
         config: dict | None = None,
         group_sizes: list[int] | None = None, # Widths of the column blocks
                                               # each BDT predicts
+        rng: np.random.Generator | None = None, # Draws `sample`'s noise
     ) -> None:
         self.config = dict(config or {}) # Need empty dict option for .from_json()
         self.group_sizes = list(group_sizes or []) # Empty => one BDT per channel
+        self.rng = rng
 
 
     @property
@@ -96,12 +98,13 @@ class FlowBDT():
             n_samples: int | None = None,
             x0: NDArray | None = None,
             solver: Solver = ab2_solve,
+            rng: np.random.Generator | None = None,
         ) -> NDArray:
         """Starting from noise, provided or sampled here, integrate the learnt
         vector field to generate a new event.
         """
         shape = None if n_samples is None else (n_samples, self.n_channels)
-        x0    = initial_noise(shape, x0)
+        x0    = initial_noise(shape, x0, rng if rng is not None else self.rng)
 
         return solver(self.predict, x0, self.n_steps)
 

@@ -25,15 +25,16 @@ class Paths:
 def build_trainds(
         x1: NDArray, 
         n_steps: int, 
-        x0: NDArray | None = None
+        x0: NDArray | None = None,
+        rng: np.random.Generator | None = None,
     ) -> tuple[Paths, NDArray]:
     """Draw noise x0 if not provided and build Paths from `x0` to `x1` with
     `n_steps` time steps.
     """
     if x0 is not None and x0.shape != x1.shape:
         raise ValueError(f"Expected x0 with shape { x1.shape }, got { x0.shape }")
-        
-    x0 = initial_noise(x1.shape) if x0 is None else x0
+
+    x0 = initial_noise(x1.shape, x0, rng)
 
     ts = np.linspace(0, 1, num = n_steps, dtype = np.float32)
 

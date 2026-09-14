@@ -61,7 +61,7 @@ def t_to_step(t: float, n_steps: int) -> int:
 def initial_noise(
         shape: tuple[int, int] | None,
         x0: NDArray | None = None,
-        rng: np.random.Generator = np.random.default_rng()
+        rng: np.random.Generator | None = None,
     ) -> NDArray:
     """Return ND Gaussian noise drawn here if `x0` not given."""
     if x0 is not None:
@@ -69,6 +69,8 @@ def initial_noise(
 
     if shape is None:
         raise ValueError("Provide either shape or initial noise x0.")
+
+    rng = np.random.default_rng() if rng is None else rng
 
     return rng.standard_normal(shape, dtype = np.float32)
 
