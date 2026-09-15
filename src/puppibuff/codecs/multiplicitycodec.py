@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from .fixedmcodec import FixedMCodec
 from ..datasets import Dataset
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from puppibuff.utils import initial_noise
+from .utils import initial_noise
 
 from numpy.typing import NDArray
 

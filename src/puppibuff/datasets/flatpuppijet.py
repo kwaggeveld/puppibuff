@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from .dataset import Dataset
 
 import numpy as np

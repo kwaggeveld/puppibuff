@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from .codec import Codec
 from ..datasets import Dataset
 from ..utils import fill_template

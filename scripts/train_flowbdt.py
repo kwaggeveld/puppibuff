@@ -3,6 +3,7 @@ from puppibuff.utils import to_zip
 
 import sys
 
+#-----------------------------------------------------------------------------
 
 def main():                             # Pass the export archive as argument 1
     if len(sys.argv) < 2:

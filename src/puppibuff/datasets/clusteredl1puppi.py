@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from .dataset import Dataset
 
 from numpy.typing import NDArray

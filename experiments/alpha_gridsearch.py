@@ -1,4 +1,4 @@
-from puppibuff.analyses import total_mse, channel_mse, plot_histograms
+from puppibuff.analyses import plot_histograms
 from puppibuff.configs import FlatPuppiJetConfig
 
 from puppibuff.utils import output_dir

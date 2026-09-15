@@ -1,6 +1,7 @@
 from puppibuff.analyses import plot_histograms
 from puppibuff.configs import MultiplicityL1PuppiConfig
 
+#-----------------------------------------------------------------------------
 
 def main():
     config = MultiplicityL1PuppiConfig(multi_output = False,

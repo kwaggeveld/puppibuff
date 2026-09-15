@@ -1,6 +1,7 @@
 from puppibuff.analyses import plot_histograms
 from puppibuff.configs import ClusteredL1PuppiConfig
 
+#-----------------------------------------------------------------------------
 
 def main():
     config = ClusteredL1PuppiConfig()

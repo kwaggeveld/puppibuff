@@ -2,6 +2,7 @@ from puppibuff.analyses import plot_histograms
 from puppibuff.configs import FlatPuppiJetConfig
 from puppibuff.utils import output_dir
 
+#-----------------------------------------------------------------------------
 
 def main():
     config = FlatPuppiJetConfig()

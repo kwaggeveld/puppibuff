@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from puppibuff.codecs import Codec
+from ..codecs import Codec
 from ..utils import fill_template
 from . import constants as c
 
