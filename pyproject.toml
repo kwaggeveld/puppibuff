@@ -21,7 +21,8 @@ dependencies = [
     "joblib",
     "tqdm",
     "conifer >= 1.9",
-]
+    "pandas",                           # Undeclared by conifer, but imported by
+]                                       # its xgboost converter
 
 [project.optional-dependencies]
 scripts = [
