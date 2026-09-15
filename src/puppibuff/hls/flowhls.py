@@ -213,10 +213,10 @@ class FlowHLS:
 
 # --- Compiling and building ---
 
-    def compile(self, n_threads: int | None = None) -> None:
+    def compile(self, n_threads: int = 1) -> None:
         """Compile the written sources for emulation. Conifer implements Python
         bindings for the HLS code. The merged design is one compilation, so
-        `n_threads` applies only to the per-BDT grid (None => all cores).
+        `n_threads` applies only to the per-BDT grid.
         """
         if self.merged:
             compile_flowhls(self.output_dir, self.cpp_sources)

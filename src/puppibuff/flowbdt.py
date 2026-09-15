@@ -56,15 +56,14 @@ class FlowBDT():
         x: Paths,
         y: NDArray,
         sample_weights: NDArray | None = None, # (N,), one weight per event
-        n_threads: int | None = None,          # None => one worker per group
+        n_threads: int = 1,             # Caps at len(targets)
     ) -> None:
         # X: sequence of n_steps arrays, each (N, n_channels); y: (N, n_channels)
         self.n_steps    = x.n_steps
         self.n_channels = y.shape[1]
 
         targets   = self._prepare_targets(y)
-        n_threads = (len(targets) if n_threads is None
-                     else min(n_threads, len(targets)))
+        n_threads = min(n_threads, len(targets))
 
         ensemble = []
         with tqdm(total = self.n_steps * len(targets),

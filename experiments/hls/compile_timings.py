@@ -4,9 +4,14 @@ from puppibuff.utils import output_dir
 
 from pathlib import Path
 from time import time
-import os
 
-def timed_compile(model, codec, project: Path, n_threads: int | None) -> float:
+#-----------------------------------------------------------------------------
+
+N_THREADS = 8                           # Set to this machine's cores by hand:
+                                        # `cpu_count()` reports the whole node
+                                        # on the cluster, not the allocation
+
+def timed_compile(model, codec, project: Path, n_threads: int) -> float:
     """Convert and write `model` into a fresh `project` directory, then time the
     compile alone.
     """
@@ -33,8 +38,8 @@ def main():
     elapsed_single = timed_compile(model, codec, outdir / "single", n_threads = 1)
     print("Elapsed time: ", elapsed_single)
 
-    print(f"Compiling with {os.cpu_count()} threads...")
-    elapsed_multi = timed_compile(model, codec, outdir / "multi", n_threads = None)
+    print(f"Compiling with { N_THREADS } threads...")
+    elapsed_multi = timed_compile(model, codec, outdir / "multi", n_threads = N_THREADS)
     print("Elapsed time: ", elapsed_multi)
 
 

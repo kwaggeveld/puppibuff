@@ -3,7 +3,7 @@ from __future__ import annotations
 from . import constants as c
 from .utils import bridge_path
 
-from os import cpu_count, environ, system
+from os import environ, system
 from pathlib import Path
 from joblib import Parallel, delayed
 from tqdm import tqdm
@@ -29,10 +29,8 @@ def compile_bdt(output_dir: str, name: str) -> None:
     model.compile()
 
 
-def compile_grid(grid: NDArray, n_threads: int | None = None) -> None:
+def compile_grid(grid: NDArray, n_threads: int = 1) -> None:
     """Compile every BDT of `grid`, `n_threads` at a time."""
-    n_threads = n_threads or cpu_count()
-
     jobs = (
         delayed(compile_bdt)(model.config.output_dir, model.config.project_name)
         for model in grid.flat
