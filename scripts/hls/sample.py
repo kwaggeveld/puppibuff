@@ -1,5 +1,6 @@
+from puppibuff import from_zip
 from puppibuff.hls import constants, FlowHLS
-from puppibuff.utils import from_zip, initial_noise
+from puppibuff.utils import initial_noise
 
 import sys
 import time

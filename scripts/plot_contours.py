@@ -1,5 +1,6 @@
+from puppibuff import from_zip
 from puppibuff.analyses import plot_contours
-from puppibuff.utils import from_zip, output_dir
+from puppibuff.utils import output_dir
 
 import sys
 from pathlib import Path

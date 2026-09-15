@@ -1,9 +1,8 @@
 from __future__ import annotations
 
+from puppibuff import Config, Dataset, FlowBDT
 from puppibuff.analyses import channel_wasserstein, sliced_wasserstein, plot_histograms
-from puppibuff.configs import Config, MultiplicityL1PuppiConfig
-from puppibuff.datasets import Dataset
-from puppibuff.flowbdt import FlowBDT
+from puppibuff.configs import MultiplicityL1PuppiConfig
 from puppibuff.utils import output_dir
 
 from itertools import product

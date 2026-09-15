@@ -1,5 +1,5 @@
+from puppibuff import from_zip
 from puppibuff.analyses import classifier_two_sample_test, joint_mse
-from puppibuff.utils import from_zip
 
 import sys
 

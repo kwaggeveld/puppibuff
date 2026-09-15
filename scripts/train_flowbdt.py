@@ -1,5 +1,5 @@
+from puppibuff import to_zip
 from puppibuff.configs import FlatPuppiJetConfig
-from puppibuff.utils import to_zip
 
 import sys
 

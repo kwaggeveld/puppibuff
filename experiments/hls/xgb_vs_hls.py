@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from puppibuff import from_zip
 from puppibuff.analyses import plot_histograms
 from puppibuff.hls import constants, FlowHLS
-from puppibuff.utils import from_zip, initial_noise, output_dir
+from puppibuff.utils import initial_noise, output_dir
 
 import sys
 import time
