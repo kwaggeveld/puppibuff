@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from ..datasets import Dataset
+from ..utils import class_path, import_class
 
 from abc import ABC, abstractmethod
 import json
@@ -79,18 +80,21 @@ class Codec(ABC):
 # --- Export/import ---
 
     def to_json(self, path: Path | str) -> None:
+        if type(self).__module__ == "__main__":
+            print(f"{ type(self).__name__ } is defined in __main__, so this "
+                  f"archive can only be loaded in a session that defines it.")
+
         with open(path, "w") as file:
-            json.dump({ "codec_cls": type(self).__name__ }
+            json.dump({ "codec_cls": class_path(type(self)) }
                       | { key: getattr(self, key) for key in self.s_EXPORT_KEYS }, file)
 
     @classmethod
     def from_json(cls, path: Path | str) -> Codec:
-        from .. import codecs            # Deferred to prevent circular import
-
+        """Construct whichever Codec the file's `codec_cls` tag names."""
         with open(path) as f:
             state = json.load(f)
 
-        obj = getattr(codecs, state.pop("codec_cls"))()
+        obj = import_class(state.pop("codec_cls"))()
         obj.__dict__.update(state)                                            # pyright: ignore[reportAttributeAccessIssue]
 
         return obj

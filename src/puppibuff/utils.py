@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import re
-from importlib import resources
+from importlib import import_module, resources
+from operator import attrgetter
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile, ZIP_DEFLATED
@@ -73,6 +74,18 @@ def initial_noise(
     rng = np.random.default_rng() if rng is None else rng
 
     return rng.standard_normal(shape, dtype = np.float32)
+
+
+def class_path(cls: type) -> str:
+    """`cls` as an importable `module:QualName` tag for a JSON export."""
+    return f"{ cls.__module__ }:{ cls.__qualname__ }"
+
+
+def import_class(path: str) -> type:
+    """Resolve a `module:QualName` tag written by `class_path`."""
+    module, _, name = path.partition(":")
+
+    return attrgetter(name)(import_module(module))
 
 
 def to_zip(path: str, config: Config, codec: Codec, model: FlowBDT) -> None:

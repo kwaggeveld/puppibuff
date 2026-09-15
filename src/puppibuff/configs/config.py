@@ -4,6 +4,7 @@ from ..datasets import Dataset
 from ..codecs import Codec
 from ..build_trainds import build_trainds, Paths
 from ..flowbdt import FlowBDT
+from ..utils import class_path, import_class
 
 from abc import ABC
 from dataclasses import dataclass, field, asdict
@@ -77,14 +78,17 @@ class Config(ABC):
 # --- Export/import ---
 
     def to_json(self, path: str) -> None:
+        if type(self).__module__ == "__main__":
+            print(f"{ type(self).__name__ } is defined in __main__, so this "
+                  f"archive can only be loaded in a session that defines it.")
+
         with open(path, "w") as file:
-            json.dump({ "config_cls": type(self).__name__ } | asdict(self), file)
+            json.dump({ "config_cls": class_path(type(self)) } | asdict(self), file)
 
     @classmethod
     def from_json(cls, path: str) -> Config:
-        from .. import configs          # Deferred to prevent circular import
-
+        """Construct whichever Config the file's `config_cls` tag names."""
         with open(path) as file:
             fields = json.load(file)
 
-        return getattr(configs, fields.pop("config_cls"))(**fields)
+        return import_class(fields.pop("config_cls"))(**fields)
