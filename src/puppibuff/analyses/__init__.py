@@ -1,7 +1,7 @@
 from .losses import (channel_mse, total_mse, channel_wasserstein, joint_mse,
                      sliced_wasserstein, classifier_two_sample_test)
 from .node_analysis import count_nodes, loss_vs_nodes, plot_loss_vs_nodes
-from .plotting import (DOC_WIDTH, use_style, plot_histograms, plot_distributions,
+from .plotting import (DOC_WIDTH, plot_histograms, plot_distributions,
                        plot_contours)
 
 __all__ = [
@@ -15,7 +15,6 @@ __all__ = [
     "loss_vs_nodes",
     "plot_loss_vs_nodes",
     "DOC_WIDTH",
-    "use_style",
     "plot_histograms",
     "plot_distributions",
     "plot_contours",

@@ -2,6 +2,9 @@ from puppibuff.analyses import plot_histograms
 from puppibuff.configs import FlatPuppiJetConfig
 from puppibuff.utils import output_dir
 
+import matplotlib.pyplot as plt
+plt.style.use("puppibuff.style")
+
 #-----------------------------------------------------------------------------
 
 def main():

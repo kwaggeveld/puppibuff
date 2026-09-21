@@ -4,6 +4,9 @@ from puppibuff.configs import FlatPuppiJetConfig
 from puppibuff.utils import output_dir
 from puppibuff.weighting import pt_power_weights
 
+import matplotlib.pyplot as plt
+plt.style.use("puppibuff.style")
+
 #-----------------------------------------------------------------------------
 
 ALPHAS = [ 0, 2, 4 ]

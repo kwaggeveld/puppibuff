@@ -2,6 +2,9 @@ from puppibuff.analyses import loss_vs_nodes, plot_loss_vs_nodes
 from puppibuff.configs import FlatPuppiJetConfig
 from puppibuff.utils import output_dir
 
+import matplotlib.pyplot as plt
+plt.style.use("puppibuff.style")
+
 #-----------------------------------------------------------------------------
 
 MAX_DEPTHS   = [ 2, 3, 4, 6, 8 ]

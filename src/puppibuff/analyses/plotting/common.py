@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from ...datasets import Dataset
-from .style import DOC_WIDTH, LEGEND_LOC
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -17,13 +16,16 @@ from matplotlib.figure import Figure
 
 Events = dict[str, NDArray]             # One distribution's per-channel arrays
 
-#--- Styling defaults ---
+#--- Styling defaults ---               # The rcParams live in the sheet 
+                                        #`puppibuff/style.mplstyle`
 
+DOC_WIDTH  = 0.9 * 6.3                  # Typical article `\the\textwidth` / 72.28
+LEGEND_LOC = "outside upper right"
+
+                                        # Slots 6, 0 and 2 of the sheet's cycle
 TARGET_C, SAMPLE_C, TRAIN_C = "#9E9E9E", "#0C5DA5", "#FF9500"
-# TARGET_C, SAMPLE_C, TRAIN_C = "tab:gray", "tab:blue", "tab:orange"
 
-TARGET_EDGE = "#474747"
-# TARGET_EDGE = "tab:brown"               # The fill is too pale to outline itself
+TARGET_EDGE = "#474747"               # Slot 5; fill is too pale to outline itself
 
 TARGET: dict = dict(color = TARGET_C, edgecolor = TARGET_EDGE, alpha = 0.35,
                     linewidth = 0.5, zorder = 1, label = "Target")
@@ -292,8 +294,8 @@ def share_labels(axes: NDArray) -> None:
 
 
 def figure_legend(fig: Figure, handles: list, labels: list[str]) -> None:
-    """One frameless figure-wide legend, in a strip below the axes."""
-    fig.legend(handles, labels, loc = LEGEND_LOC, ncols = len(handles))
+    """One frameless figure-wide legend, in a strip at `LEGEND_LOC`."""
+    fig.legend(handles, labels, loc = LEGEND_LOC, ncols = len(handles))         # type: ignore
 
 
 def finalise(fig: Figure, axes: NDArray, columns: list[str],

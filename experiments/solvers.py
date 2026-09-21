@@ -7,6 +7,7 @@ from puppibuff.utils import initial_noise, output_dir
 
 import numpy as np
 import matplotlib.pyplot as plt
+plt.style.use("puppibuff.style")
 
 from numpy.typing import NDArray
 

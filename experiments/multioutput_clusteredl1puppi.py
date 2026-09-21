@@ -1,6 +1,9 @@
 from puppibuff.analyses import plot_histograms
 from puppibuff.configs import ClusteredL1PuppiConfig
 
+import matplotlib.pyplot as plt
+plt.style.use("puppibuff.style")
+
 #-----------------------------------------------------------------------------
 
 def main():

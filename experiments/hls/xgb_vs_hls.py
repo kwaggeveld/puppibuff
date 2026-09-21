@@ -9,6 +9,9 @@ import sys
 import time
 from pathlib import Path
 
+import matplotlib.pyplot as plt
+plt.style.use("puppibuff.style")
+
 #-----------------------------------------------------------------------------
 
 N_SAMPLES  = 1_000_000

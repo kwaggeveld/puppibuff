@@ -43,6 +43,7 @@ dev = [
 where = ["src"]
 
 [tool.setuptools.package-data]
+"puppibuff" = ["*.mplstyle"]
 "puppibuff.hls" = ["firmware/*"]
 "puppibuff.codecs" = ["firmware/*"]
 

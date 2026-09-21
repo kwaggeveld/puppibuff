@@ -1,0 +1,41 @@
+# After `cajohare/HowToMakeAPlot`'s `sty.mplstyle`.
+#
+#   plt.style.use("puppibuff.style")
+#
+# Text is sized for an 11 pt document, include the PDF at its natural size.
+
+font.family:      serif
+mathtext.fontset: cm
+font.size:        11
+
+axes.titlesize:        medium
+figure.labelsize:      medium
+figure.titlesize:      medium
+legend.fontsize:       small
+legend.title_fontsize: small
+xtick.labelsize:       small
+ytick.labelsize:       small
+
+xtick.direction:     in
+ytick.direction:     in
+xtick.top:           True
+ytick.right:         True
+xtick.minor.visible: True
+ytick.minor.visible: True
+xtick.major.size:    5.0
+ytick.major.size:    5.0
+xtick.minor.size:    2.5
+ytick.minor.size:    2.5
+
+legend.frameon: False
+axes.grid:      False
+
+# Slots 0, 2, 5 and 6 are the series colours in analyses/plotting/common.py.
+# The hex values must be in DOUBLE quotes: this file is comment-stripped at the
+# first unquoted `#`, and only `"` counts as a quote — under `'` every colour
+# here is silently truncated to nothing.
+axes.prop_cycle: cycler('color', ["#0C5DA5", "#00B945", "#FF9500", "#FF2C00", "#845B97", "#474747", "#9E9E9E"])
+
+savefig.bbox:       tight
+savefig.pad_inches: 0.02
+pdf.fonttype:       42

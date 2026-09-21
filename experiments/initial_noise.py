@@ -3,6 +3,8 @@ from puppibuff.configs import FlatPuppiJetConfig
 from puppibuff import FlowBDT, build_trainds
 
 import numpy as np
+import matplotlib.pyplot as plt
+plt.style.use("puppibuff.style")
 
 from numpy.typing import NDArray
 

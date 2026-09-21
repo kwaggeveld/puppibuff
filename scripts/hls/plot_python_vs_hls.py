@@ -9,6 +9,9 @@ from pathlib import Path
 
 import numpy as np
 
+import matplotlib.pyplot as plt
+plt.style.use("puppibuff.style")
+
 #-----------------------------------------------------------------------------
 
 # Plotting of output of `scripts/hls/sample.py`

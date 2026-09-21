@@ -5,11 +5,14 @@ from puppibuff.utils import output_dir
 import sys
 from pathlib import Path
 
+import matplotlib.pyplot as plt
+plt.style.use("puppibuff.style")
+
 #-----------------------------------------------------------------------------
 
 # Histogram plots from pretrained model
 
-N_SAMPLES = 29_000_000
+N_SAMPLES = 1_000_000
 
 def main():
     if len(sys.argv) < 2:

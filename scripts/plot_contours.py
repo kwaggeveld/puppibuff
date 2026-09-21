@@ -5,6 +5,9 @@ from puppibuff.utils import output_dir
 import sys
 from pathlib import Path
 
+import matplotlib.pyplot as plt
+plt.style.use("puppibuff.style")
+
 #-----------------------------------------------------------------------------
 
 # Pairwise KDE contour plots, like BUFF's Fig. 2 (arXiv:2404.18219).
