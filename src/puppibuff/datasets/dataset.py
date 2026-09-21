@@ -1,49 +1,38 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from pathlib import Path
-from os import environ
 from typing import overload
-
-import numpy as np
-from tqdm import tqdm
 
 from numpy.typing import NDArray
 
 #-----------------------------------------------------------------------------
 
 class Dataset(ABC):
-    s_CHANNELS: list[str]
-    s_CHANNEL_KEYS: dict[str, str]      # maps channel -> raw key
-    s_LOCATION_ENV: str                 # Environ var pointing at this dataset's .npy dir
+    """One physics dataset as per-channel arrays, loaded once at construction.
 
-    def __init__(self, dir: str | None = None) -> None:
-        dir = dir if dir is not None else environ[self.s_LOCATION_ENV]
-        self.d_data = self._load(dir)
+    Override `_load` to load your own data, see its docstring.
+    """
+
+    s_CHANNELS: list[str]               # The channels `_load` must return
+
+    def __init__(self) -> None:
+        self.d_data = self._load()
+
+        if set(self.d_data) != set(self.s_CHANNELS):
+            raise ValueError(f"{ type(self).__name__ }._load returned channels "
+                             f"{ sorted(self.d_data) }, expected "
+                             f"{ sorted(self.s_CHANNELS) }.")
 
 # --- Loading data ---
-    
-    def _load(self, dir: str) -> dict[str, NDArray]:
-        event_dict: dict[str, list[NDArray]] = { channel: [] for channel in self.s_CHANNELS }
 
-        files = sorted(Path(dir).glob("*.npy"))
-        for file in tqdm(files, desc = "Loading dataset"):
-            data = np.load(file, allow_pickle = True).item()
+    @abstractmethod
+    def _load(self) -> dict[str, NDArray]:
+        """Return this dataset's channels as an array per name in `s_CHANNELS`.
 
-            selected = self._select(data)    # Derived datasets implement this
-            if selected is None: continue    # to specify their events
-
-            for channel, arr in selected.items():
-                event_dict[channel].append(arr) 
-                                        
-        return {                        # Concat. all events per channel
-            channel: np.concatenate(event_dict[channel], dtype = np.float32)
-            for channel in self.s_CHANNELS
-        }
-
-    @abstractmethod                     # Selected events from one file
-    def _select(self, data: dict) -> dict[str, NDArray] | None:
-        ...                         
+        The only method a Dataset has to implement: load the arrays and hand them
+        back.
+        """
+        ...
 
 # --- Accessors ---
 
@@ -61,4 +50,6 @@ class Dataset(ABC):
         return obj
 
     def channels(self) -> list[str]:
+        """The channel names stored in the Dataset.
+        """
         return list(self.s_CHANNELS)
