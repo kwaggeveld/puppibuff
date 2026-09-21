@@ -13,9 +13,10 @@ class PuppiJetM16(NpyDirDataset):
     s_CHANNEL_KEYS = { channel: "PuppiJet_" + channel for channel in s_CHANNELS }
     s_LOCATION_ENV = "PUPPIJET_LOCATION"
 
-    def _select(self, data: dict) -> dict[str, NDArray] | None:
+    def _select(self, data: dict) -> dict[str, NDArray]:
         mask = data["nPuppiJet"] == 16
-        if not mask.any(): return None
+        if not mask.any(): 
+            return {}                   # np.stack raises on an empty selection
 
         return {
             channel: np.stack(data[raw_key][mask])

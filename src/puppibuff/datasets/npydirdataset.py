@@ -33,11 +33,7 @@ class NpyDirDataset(Dataset):
         for file in tqdm(files, desc = "Loading dataset"):
             data = np.load(file, allow_pickle = True).item()
 
-            selected = self._select(data)
-            if selected is None:
-                continue
-
-            for channel, arr in selected.items():
+            for channel, arr in self._select(data).items():
                 event_dict[channel].append(arr)
 
         return {                        # Concat. all events per channel
@@ -45,8 +41,6 @@ class NpyDirDataset(Dataset):
             for channel in self.s_CHANNELS
         }
 
-    def _select(self, data: dict) -> dict[str, NDArray] | None:
-        """Select this dataset's events and channels out of one loaded batch, or
-        return `None` to skip entirely.
-        """
+    def _select(self, data: dict) -> dict[str, NDArray]:
+        """Select this dataset's events and channels out of one loaded batch"""
         return data
