@@ -13,6 +13,7 @@ authors = [
     { name = "Koen Waggeveld", email = "k.c.waggeveld@student.rug.nl" },
 ]
 dependencies = [
+    "click",
     "numpy",
     "matplotlib",
     "scipy",
@@ -23,6 +24,9 @@ dependencies = [
     "conifer >= 1.9",
     "pandas",                           # Undeclared by conifer, but imported by
 ]                                       # its xgboost converter
+
+[project.scripts]
+puppibuff = "puppibuff.cli:main"
 
 [project.optional-dependencies]
 scripts = [

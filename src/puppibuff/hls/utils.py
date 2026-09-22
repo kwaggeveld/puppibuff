@@ -58,9 +58,8 @@ def block_latency(root: Path | str, block: str) -> int:
     return int(latency)
 
 
-def merged_build(root: Path | str) -> bool:
-    """Whether a merged design was compiled into `root`. The per-BDT layout keeps
-    its bridges down in the project directories, so which `.so` sits at the root
-    is what tells the two apart.
+def is_merged(root: Path | str) -> bool:
+    """Determine whether a merged design was written into `root`. Only the
+    merged layout emits a build script there.
     """
-    return merged_bridge(root).exists()
+    return (Path(root) / c.BUILD_SCRIPT).exists()
