@@ -3,6 +3,7 @@ from ..analyses import plot_histograms
 from ..codecs import Codec
 from ..flowbdt import FlowBDT
 from ..hls import constants, FlowHLS
+from ..hls.utils import is_compiled
 from ..utils import initial_noise, output_dir
 from .common import COUNT, figure_path, timed
 
@@ -67,15 +68,20 @@ def read_samples(arrays: NpzFile, codec: Codec) -> dict[str, dict[str, NDArray]]
 
 def build_hls(model: FlowBDT, codec: Codec, workdir: str,
               merged: bool = True) -> FlowHLS:
-    """Convert, write and compile the grid, or bind an existing build in 
-    `workdir`.
+    """Bind a design in `workdir` that can be sampled from, reusing compiled and
+    written designs.
     """
-    if Path(workdir).exists() and any(Path(workdir).rglob("bdt_s*_g*.json")):
+    if is_compiled(workdir):
         return timed("Loading compiled grid", FlowHLS.load, workdir)
 
-    flowhls = timed("Converting grid", FlowHLS.convert, model,
-                    output_dir = workdir, merged = merged)
-    timed("Writing", flowhls.write, codec)
+    if Path(workdir).exists() and any(Path(workdir).rglob("bdt_s*_g*.json")):
+        flowhls = timed("Loading written design", FlowHLS.load, workdir,
+                        attach = False)
+    else:
+        flowhls = timed("Converting grid", FlowHLS.convert, model,
+                        output_dir = workdir, merged = merged)
+        timed("Writing", flowhls.write, codec)
+
     timed("Compiling", flowhls.compile)
 
     return flowhls

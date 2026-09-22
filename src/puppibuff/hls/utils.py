@@ -63,3 +63,13 @@ def is_merged(root: Path | str) -> bool:
     merged layout emits a build script there.
     """
     return (Path(root) / c.BUILD_SCRIPT).exists()
+
+
+def is_compiled(root: Path | str) -> bool:
+    """Determine whether a design in `root` has a compiled bridge to sample 
+    with.
+    """
+    if is_merged(root):
+        return merged_bridge(root).exists()
+
+    return bridge_path(*project_paths(Path(root), 0, 0)).exists()
