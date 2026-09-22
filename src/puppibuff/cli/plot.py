@@ -4,6 +4,7 @@ from .common import COUNT, figure_path, timed
 
 import click
 import numpy as np
+import matplotlib.pyplot as plt
 
 from matplotlib.figure import Figure
 from typing import Callable
@@ -28,12 +29,14 @@ def plot_options(command):
                      default = N_SAMPLES_DEFAULT, show_default = True,
                      help = "Number of samples."),
         click.option("-s", "--seed", type = int,
-                     help = "Seed for the sampler."),
+                     help = "Set sampler seed."),
         click.option("--train-overlay/--no-train-overlay", default = True,
                      show_default = True,
                      help = "Include training dataset overlay."),
         click.option("-o", "--output", type = click.Path(file_okay = False),
                      help = f"Output directory  [default: ./output/{ command.__name__ }/]"),
+        click.option("--show", is_flag = True,
+                     help = "Show the figure instead of writing, ignoring -o."),
     ]
 
     for option in reversed(options):
@@ -42,8 +45,15 @@ def plot_options(command):
     return command
 
 
-def draw(plotter: str, model: str, n_samples: int, seed: int | None,
-         train_overlay: bool, output: str | None) -> None:
+def draw(
+    plotter: str, 
+    model: str, 
+    n_samples: int, 
+    seed: int | None,
+    train_overlay: bool, 
+    output: str | None,
+    show: bool
+) -> None:
     """Sample `model`'s archive and draw it against the dataset it was trained on."""
     config, codec, flowbdt = timed("Loading model", from_zip, model)
 
@@ -57,6 +67,10 @@ def draw(plotter: str, model: str, n_samples: int, seed: int | None,
                                         # Convert string plotter to function call
     figure = timed(f"Drawing { plotter }", PLOTTERS[plotter], data, samples,
                    n_events = config.n_events if train_overlay else None)
+
+    if show:
+        plt.show()
+        return
 
     path = figure_path(plotter, model, output)
     figure.savefig(path, format = "pdf")
