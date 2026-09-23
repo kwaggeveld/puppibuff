@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from .. import from_zip
-from ..utils import initial_noise, output_dir
-from .common import apply_style, COUNT, figure_path, timed
+from ..utils import initial_noise
+from .common import apply_style, COUNT, figure_path, OUTPUT_DIR, timed
 
 from pathlib import Path
 
@@ -75,12 +75,12 @@ def build_hls(model: FlowBDT, codec: Codec, workdir: str,
     written designs.
     """
     from ..hls import FlowHLS
-    from ..hls.utils import is_compiled
+    from ..hls.utils import is_compiled, is_written
 
     if is_compiled(workdir):
         return timed("Loading compiled grid", FlowHLS.load, workdir)
 
-    if Path(workdir).exists() and any(Path(workdir).rglob("bdt_s*_g*.json")):
+    if is_written(workdir):
         flowhls = timed("Loading written design", FlowHLS.load, workdir,
                         attach = False)
     else:
@@ -111,7 +111,7 @@ def write(model: str, output: str | None, per_bdt: bool) -> None:
     _, codec, flowbdt = from_zip(model)
 
     if output is None:                  # Beside the figures, one dir per model
-        output = str(output_dir("hls") / Path(model).stem)
+        output = str(Path(OUTPUT_DIR) / "hls" / Path(model).stem)
 
     flowhls = FlowHLS.convert(flowbdt, output_dir = output, merged = not per_bdt)
     flowhls.write(codec)
@@ -172,7 +172,8 @@ def sample(workdir: str, model: str, n_samples: int, encoded: bool) -> None:
                      x0 = x0, solver = constants.SAMPLE_SOLVER),
     }
 
-    path    = Path(workdir) / f"{ Path(workdir).name }_samples.npz"
+    outdir  = Path(workdir)
+    path    = outdir / f"{ outdir.name }_samples.npz"
     members = sample_members(samples, None if encoded else codec)
     
     np.savez(path, **members)                                                   # type: ignore[arg-type]

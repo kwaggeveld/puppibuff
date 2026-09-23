@@ -46,7 +46,6 @@ def draw(
 ) -> None:
     """Sample `model`'s archive and draw it against the dataset it was trained on."""
     from ..analyses import plot_contours, plot_distributions, plot_histograms
-    import matplotlib.pyplot as plt
 
     apply_style()
 
@@ -70,6 +69,8 @@ def draw(
                    n_events = config.n_events if train_overlay else None)
 
     if show:
+        import matplotlib.pyplot as plt
+
         plt.show()
         return
 

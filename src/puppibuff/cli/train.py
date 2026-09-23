@@ -15,8 +15,8 @@ def train(outfile: str) -> None:
     from ..configs import FlatPuppiJetConfig
 
     config = FlatPuppiJetConfig()
-
-    _, codec, model, x, y = config.setup()
+                                        # `[1:]` to drop the dataset 
+    codec, model, x, y = config.setup()[1:]
 
     model.fit(x, y)
 

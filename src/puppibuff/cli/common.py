@@ -1,5 +1,3 @@
-from ..utils import output_dir
-
 import sys
 import time
 from pathlib import Path
@@ -18,6 +16,8 @@ def apply_style() -> None:
 
 
 ERASE_LINE = "\r\x1b[K"                 # Back to column 0, then clear the rest
+
+OUTPUT_DIR = "output"                   # Under the cwd
 
 def timed(label: str, call, *args, **kwargs):
     """Announce a step before running, and report the time it took."""
@@ -49,7 +49,7 @@ COUNT = Count()
 
 def figure_path(kind: str, source: str, output: str | None) -> Path:
     """`output`, or `./output/<kind>/`, with `source`'s stem as the file name."""
-    outdir = Path(output) if output is not None else output_dir(kind)
+    outdir = Path(output) if output is not None else Path(OUTPUT_DIR) / kind
     outdir.mkdir(parents = True, exist_ok = True)
 
     return outdir / f"{ Path(source).stem }.pdf"
