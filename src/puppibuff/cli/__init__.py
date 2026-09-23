@@ -3,11 +3,8 @@ from .plot import plot
 from .train import train
 
 import click
-import matplotlib.pyplot as plt
 
 #-----------------------------------------------------------------------------
-
-plt.style.use("puppibuff.style")
 
 @click.group()
 @click.version_option(package_name = "puppibuff")

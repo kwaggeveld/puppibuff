@@ -1,11 +1,8 @@
+from __future__ import annotations
+
 from .. import from_zip
-from ..analyses import plot_histograms
-from ..codecs import Codec
-from ..flowbdt import FlowBDT
-from ..hls import constants, FlowHLS
-from ..hls.utils import is_compiled
 from ..utils import initial_noise, output_dir
-from .common import COUNT, figure_path, timed
+from .common import apply_style, COUNT, figure_path, timed
 
 from pathlib import Path
 
@@ -14,6 +11,12 @@ import numpy as np
 from numpy.lib.npyio import NpzFile
 
 from numpy.typing import NDArray
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..codecs import Codec
+    from ..flowbdt import FlowBDT
+    from ..hls import FlowHLS
 
 #-----------------------------------------------------------------------------
 
@@ -71,6 +74,9 @@ def build_hls(model: FlowBDT, codec: Codec, workdir: str,
     """Bind a design in `workdir` that can be sampled from, reusing compiled and
     written designs.
     """
+    from ..hls import FlowHLS
+    from ..hls.utils import is_compiled
+
     if is_compiled(workdir):
         return timed("Loading compiled grid", FlowHLS.load, workdir)
 
@@ -100,6 +106,8 @@ def hls() -> None:
               help = "Write one conifer project per BDT.")
 def write(model: str, output: str | None, per_bdt: bool) -> None:
     """Write MODEL's HLS firmware to DIRECTORY."""
+    from ..hls import FlowHLS
+
     _, codec, flowbdt = from_zip(model)
 
     if output is None:                  # Beside the figures, one dir per model
@@ -118,6 +126,8 @@ def build(workdir: str) -> None:
 
     Run `puppibuff hls write` first. Requires `vitis_hls` on PATH.
     """
+    from ..hls import constants, FlowHLS
+
                                         # Nothing here samples, so the design
                                         # need not have been compiled
     flowhls = FlowHLS.load(workdir, attach = False)
@@ -147,6 +157,8 @@ def sample(workdir: str, model: str, n_samples: int, encoded: bool) -> None:
     Kept encoded if `--encoded`. `puppibuff hls plot` draws, and optinally 
     decodes, these generated samples.
     """
+    from ..hls import constants
+
     _, codec, flowbdt = from_zip(model)
 
     flowhls = build_hls(flowbdt, codec, workdir)
@@ -175,6 +187,10 @@ def sample(workdir: str, model: str, n_samples: int, encoded: bool) -> None:
               help = "Output directory  [default: ./output/hls/]")
 def plot(samples: str, model: str, output: str | None) -> None:
     """Draw HLS/XGBoost's SAMPLES against the dataset MODEL was trained on."""
+    from ..analyses import plot_histograms
+
+    apply_style()
+
     arrays = np.load(samples)
 
     config, codec, _ = timed("Loading model", from_zip, model)

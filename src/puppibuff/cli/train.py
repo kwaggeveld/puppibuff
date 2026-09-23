@@ -1,5 +1,4 @@
 from .. import to_zip
-from ..configs import FlatPuppiJetConfig
 
 import click
 
@@ -13,6 +12,8 @@ def train(outfile: str) -> None:
     One archive holds the config, codec and model together, read back by
     `puppibuff.from_zip`.
     """
+    from ..configs import FlatPuppiJetConfig
+
     config = FlatPuppiJetConfig()
 
     _, codec, model, x, y = config.setup()

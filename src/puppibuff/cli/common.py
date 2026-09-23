@@ -8,6 +8,15 @@ import click
 
 #-----------------------------------------------------------------------------
 
+def apply_style() -> None:
+    """Style drawn figures using the package style. Imports matplotlib on call 
+    to reduce time needed for '--help'.
+    """
+    import matplotlib.pyplot as plt
+
+    plt.style.use("puppibuff.style")
+
+
 ERASE_LINE = "\r\x1b[K"                 # Back to column 0, then clear the rest
 
 def timed(label: str, call, *args, **kwargs):

@@ -1,16 +1,3 @@
-from .build_trainds import build_trainds
-from .codecs import Codec
-from .configs import Config
-from .datasets import Dataset
-from .flowbdt import FlowBDT
-from .utils import from_zip, to_zip
-
-__all__ = [
-    "build_trainds",
-    "Codec",
-    "Config",
-    "Dataset",
-    "FlowBDT",
-    "from_zip",
-    "to_zip",
-]
+import lazy_loader
+                                        # Lazy import, uses `__init__.pyi``
+__getattr__, __dir__, __all__ = lazy_loader.attach_stub(__name__, __file__)

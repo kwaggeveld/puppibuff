@@ -1,22 +1,12 @@
 from .. import from_zip
-from ..analyses import plot_contours, plot_distributions, plot_histograms
-from .common import COUNT, figure_path, timed
+from .common import apply_style, COUNT, figure_path, timed
 
 import click
 import numpy as np
-import matplotlib.pyplot as plt
-
-from matplotlib.figure import Figure
-from typing import Callable
 
 #-----------------------------------------------------------------------------
 
 N_SAMPLES_DEFAULT = 1_000_000
-PLOTTERS: dict[str, Callable[..., Figure]] = {
-    "histograms":    plot_histograms,
-    "distributions": plot_distributions,
-    "contours":      plot_contours,
-}
 
 
 def plot_options(command):
@@ -55,6 +45,17 @@ def draw(
     show: bool
 ) -> None:
     """Sample `model`'s archive and draw it against the dataset it was trained on."""
+    from ..analyses import plot_contours, plot_distributions, plot_histograms
+    import matplotlib.pyplot as plt
+
+    apply_style()
+
+    plotters = {                        # The plotter each command uses
+        "histograms":    plot_histograms,
+        "distributions": plot_distributions,
+        "contours":      plot_contours,
+    }
+
     config, codec, flowbdt = timed("Loading model", from_zip, model)
 
                                         # Overrides saved rng
@@ -64,8 +65,8 @@ def draw(
 
     raw     = timed(f"Sampling { n_samples }", flowbdt.sample, n_samples, rng = rng)
     samples = codec.decode(raw)
-                                        # Convert string plotter to function call
-    figure = timed(f"Drawing { plotter }", PLOTTERS[plotter], data, samples,
+
+    figure = timed(f"Drawing { plotter }", plotters[plotter], data, samples,
                    n_events = config.n_events if train_overlay else None)
 
     if show:
