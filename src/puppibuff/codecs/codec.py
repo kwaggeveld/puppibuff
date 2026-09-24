@@ -25,10 +25,6 @@ class Codec(ABC):
     def __init__(self, s1phi: bool = False) -> None:  # Agrees with Config.s1phi
         self.s1phi = s1phi
 
-    def check_dataset(self, data: Dataset) -> None:
-        if not isinstance(data, Dataset):
-            raise TypeError(f"expected a Dataset, got {type(data).__name__}")
-
 # --- Main functionality --- 
 
     @abstractmethod

@@ -23,41 +23,16 @@ class FixedMCodec(Codec):
                       for attr    in ( "mean", "std", "min", "max" )] \
                     + [ "s1phi", "n_features", "multiplicity" ]
 
-    s_DECODED = [ "pt", "eta", "phi" ]  # What `decode` returns, per slot
+    s_REQUIRED = [ "pt", "eta", "phi" ]  # Expected by `fit` and `encode` 
+    s_DECODED  = [ "pt", "eta", "phi" ]  # Returned by `decode`, for HLS
 
     s_FRACTION_BITS = 12                # Decoded outputs' fractional precision
 
     s_EXPM1_FRAC_BITS = 8               # `expm1` table entries per unit of log1p(pt)
 
 
-    def check_dataset(self, data: Dataset) -> None:
-        super().check_dataset(data)     # Asserts type
-
-        ref_shape= None                
-        for channel in data.channels(): # Check each channel's shape: should be
-            arr = data[channel]         #   (N, M) = (num_events, multiplicity)
-                                        # for each channel.
-            if arr.dtype == object:
-                raise ValueError(
-                    f"Channel {channel!r} is ragged. "
-                    f"FixedMCodec requires fixed jet multiplicity."
-                )
-            if arr.ndim not in (1, 2):
-                raise ValueError(
-                    f"channel {channel!r} must be flattened 1D (N,) "
-                    f"or 2D (N, M), got shape {arr.shape}"
-                )
-            if ref_shape is None:
-                ref_shape = arr.shape
-            elif arr.shape != ref_shape:
-                raise ValueError(
-                    f"Channel {channel!r} has shape {arr.shape}, "
-                    f"expected {ref_shape} to match other channels"
-                )
-
-
     def fit(self, data: Dataset) -> None:
-        self.check_dataset(data)
+        self._check_channels(data)
 
         self._fit_stats(data["pt"], data["eta"], data["phi"])
 
@@ -65,8 +40,6 @@ class FixedMCodec(Codec):
         self.multiplicity = data["pt"].shape[1] if data["pt"].ndim == 2 else 1
 
     def encode(self, data: Dataset) -> NDArray:
-        self.check_dataset(data)
-
         encoded_channels = self._encode_channels(
             data["pt"], data["eta"], data["phi"]
         )
@@ -166,6 +139,23 @@ class FixedMCodec(Codec):
 
             turns_width = self.s_FRACTION_BITS + 4,
         )
+
+
+    def _check_channels(self, data: Dataset) -> None:
+        """Check `data`'s included channels and their shape."""
+        if missing := set(self.s_REQUIRED) - set(data.channels()):
+            raise ValueError(f"{ type(self).__name__ } expects channels "
+                             f"{ sorted(missing) } which are not included in "
+                             f"{ type(data).__name__ }.")
+
+        for channel in self.s_REQUIRED:
+            arr = data[channel]
+            if arr.dtype == object or arr.ndim not in ( 1, 2 ):
+                raise ValueError(
+                    f"Channel { channel !r} is { arr.ndim }-D of dtype "
+                    f"{ arr.dtype }. { type(self).__name__ } expects a flat (N,) "
+                    f"or a padded (N, M) array."
+                )
 
 
     def _fit_stats(self, pt: NDArray, eta: NDArray, phi: NDArray) -> None:

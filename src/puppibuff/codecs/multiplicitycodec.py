@@ -16,10 +16,11 @@ class MultiplicityCodec(FixedMCodec):
 
     s_EXPORT_KEYS = FixedMCodec.s_EXPORT_KEYS + [ "mult_mean", "mult_std" ]
 
-    s_DECODED = FixedMCodec.s_DECODED + [ "real" ]
+    s_REQUIRED = FixedMCodec.s_REQUIRED + [ "real" ]
+    s_DECODED  = FixedMCodec.s_DECODED  + [ "real" ]
 
     def fit(self, data: Dataset) -> None:
-        self.check_dataset(data)
+        self._check_channels(data)
 
         real = data["real"] == 1        # Exclude padded slots from statistics
         self._fit_stats(data["pt"][real], data["eta"][real], data["phi"][real])
@@ -42,8 +43,6 @@ class MultiplicityCodec(FixedMCodec):
 
 
     def encode(self, data: Dataset) -> NDArray:
-        self.check_dataset(data)
-
         encoded_channels = self._encode_channels(
             data["pt"], data["eta"], data["phi"]
         )                               
