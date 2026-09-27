@@ -12,7 +12,11 @@ from numpy.typing import NDArray
 #-----------------------------------------------------------------------------
 
 class Codec(ABC):
-    s_EXPORT_KEYS: list[str]
+    """The interface between a `Dataset`'s physical channels and the encoded  
+    space `FlowBDT` is trained in and samples from.
+    """
+
+    s_EXPORT_KEYS: list[str]            # Fitted attributes `to_json` writes
     s_DECODED: list[str]                # The channels `decode` returns
 
     s_DECODE_TOP = "decode"             # `decode_cpp`'s HLS top function
@@ -29,18 +33,34 @@ class Codec(ABC):
 
     @abstractmethod
     def fit(self, data: Dataset) -> None:
+        """Set every fitted constant from `data`. Called once on the whole 
+        dataset, before `encode`.
+        """
         ...
 
     @abstractmethod
     def encode(self, data: Dataset) -> NDArray:
+        """Return `data`'s channels, encoded, as one `(n_events, n_columns)` 
+        array. Sort the columns channel-major: channel's columns are consecutive.
+        """
         ...
 
     @abstractmethod
     def decode(self, out: NDArray) -> dict[str, NDArray]:
+        """Reverse the transformations done by `encode`, return as one physical 
+        array per `s_DECODED. `out` is `(n_events, n_columns)` as `encode` 
+        returns.
+        """
         ...
 
     @abstractmethod
     def group_sizes(self) -> list[int]:
+        """How many encoded columns each multi-output BDT predicts jointly.
+
+        A group is a contiguous block of `encode`'s columns and each column must 
+        be part of one group, so the widths should sum to `n_columns`. 
+        `[1] * n_columns` is one single-output BDT per column.
+        """
         ...
 
 # --- HLS export ---
@@ -76,6 +96,12 @@ class Codec(ABC):
 # --- Export/import ---
 
     def to_json(self, path: Path | str) -> None:
+        """Write the Codec's class tag and `s_EXPORT_KEYS` to `path` to save the
+        object to JSON.
+
+       `from_json` uses the tag to reconstruct, so a Codec defined outside an
+        importable module cannot be loaded back.
+        """
         if type(self).__module__ == "__main__":
             print(f"{ type(self).__name__ } is defined in __main__, so this "
                   f"archive can only be loaded in a session that defines it.")
@@ -86,7 +112,7 @@ class Codec(ABC):
 
     @classmethod
     def from_json(cls, path: Path | str) -> Codec:
-        """Construct whichever Codec the file's `codec_cls` tag names."""
+        """Construct the Codec specified by the file's `codec_cls` tag."""
         with open(path) as f:
             state = json.load(f)
 
