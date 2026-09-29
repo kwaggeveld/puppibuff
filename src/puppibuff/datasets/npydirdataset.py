@@ -30,6 +30,9 @@ class NpyDirDataset(Dataset):
         event_dict: dict[str, list[NDArray]] = { channel: [] for channel in self.s_CHANNELS }
 
         files = sorted(Path(self.dir).glob("*.npy"))
+        if not files:                   # glob doesn't raise on a missing dir
+            raise FileNotFoundError(f"No .npy files in { self.dir }")
+
         for file in tqdm(files, desc = "Loading dataset"):
             data = np.load(file, allow_pickle = True).item()
 
