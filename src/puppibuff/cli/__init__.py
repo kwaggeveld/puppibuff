@@ -1,6 +1,7 @@
 from .config import config
 from .hls import hls
 from .plot import plot
+from .sample import sample
 from .train import train
 
 import click
@@ -19,6 +20,7 @@ def main() -> None:
 
 main.add_command(train)
 main.add_command(config)
+main.add_command(sample)
 main.add_command(plot)
 main.add_command(hls)
 

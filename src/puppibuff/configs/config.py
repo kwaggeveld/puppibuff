@@ -90,9 +90,14 @@ class Config(ABC):
             json.dump(self.to_dict(), file)
 
     @classmethod
+    def from_dict(cls, fields: dict) -> Config:
+        """Construct whichever Config the dict's `config_cls` tag names."""
+        fields = dict(fields)           # Make a copy
+
+        return import_class(fields.pop("config_cls"))(**fields)
+
+    @classmethod
     def from_json(cls, path: str) -> Config:
         """Construct whichever Config the file's `config_cls` tag names."""
         with open(path) as file:
-            fields = json.load(file)
-
-        return import_class(fields.pop("config_cls"))(**fields)
+            return cls.from_dict(json.load(file))

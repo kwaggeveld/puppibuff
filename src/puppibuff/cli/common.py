@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import time
 from pathlib import Path
+from zipfile import is_zipfile, ZipFile
 
 import click
 
@@ -27,6 +28,7 @@ ERASE_LINE = "\r\x1b[K"                 # Back to column 0, then clear the rest
 OUTPUT_DIR = "output"                   # Under the cwd
 
 CONFIG_DEFAULT = "FlatPuppiJetConfig"
+N_SAMPLES_DEFAULT = 1_000_000
 
 def timed(label: str, call, *args, **kwargs):
     """Announce a step before running, and report the time it took."""
@@ -71,6 +73,13 @@ def figure_path(kind: str, source: str, output: str | None) -> Path:
     outdir.mkdir(parents = True, exist_ok = True)
 
     return outdir / f"{ Path(source).stem }.pdf"
+
+
+def is_archive(path: str) -> bool:
+    """Whether `path` is a model archive or a `.npz` containing samples."""
+    from ..utils import MODEL_FILE
+
+    return is_zipfile(path) and MODEL_FILE in ZipFile(path).namelist()
 
 
 def config_names() -> list[str]:

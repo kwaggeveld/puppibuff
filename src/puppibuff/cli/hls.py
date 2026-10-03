@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from .. import from_zip
 from ..utils import initial_noise
-from .common import apply_style, COUNT, figure_path, OUTPUT_DIR, timed
+from .common import (apply_style, COUNT, figure_path, N_SAMPLES_DEFAULT,
+                     OUTPUT_DIR, timed)
 
 from pathlib import Path
 
@@ -19,8 +20,6 @@ if TYPE_CHECKING:
     from ..hls import FlowHLS
 
 #-----------------------------------------------------------------------------
-
-N_SAMPLES_DEFAULT = 1_000_000           # Drawn once, run through both samplers
 
 SAMPLERS = ( "hls", "xgb" )             # `sample` writes both, `plot` reads both
 
@@ -147,7 +146,8 @@ def build(workdir: str) -> None:
 @click.argument("workdir", type = click.Path(file_okay = False))
 @click.argument("model", type = click.Path(exists = True))
 @click.option("-n", "--n-samples", type = COUNT, default = N_SAMPLES_DEFAULT,
-              show_default = True, help = "Events to generate with each sampler.")
+              show_default = True,
+              help = "Events to generate with each sampler from shared noise.")
 @click.option("--encoded", is_flag = True,
               help = "Save the codec's input instead of its output")
 def sample(workdir: str, model: str, n_samples: int, encoded: bool) -> None:

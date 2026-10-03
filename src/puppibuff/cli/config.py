@@ -1,22 +1,29 @@
 from __future__ import annotations
 
-from .common import config_names, resolve_config
+from .common import config_names, is_archive, resolve_config
+from .sample import config_json
 
 import json
 from pathlib import Path
 from zipfile import is_zipfile, ZipFile
 
 import click
+import numpy as np
 
 #-----------------------------------------------------------------------------
 
 def file_config(path: str) -> dict:
-    """Resolve the config saved in a trained archive or a loose config JSON."""
+    """Resolve the config saved in a trained archive, a sample file, or a loose
+    config JSON.
+    """
     from ..configs import Config
     from ..utils import CONFIG_FILE
 
     if not is_zipfile(path):
         return Config.from_json(path).to_dict()
+
+    if not is_archive(path):            # Samples
+        return config_json(np.load(path))
 
     try:
         with ZipFile(path) as archive:
@@ -41,8 +48,8 @@ def list_configs() -> None:
 @config.command()
 @click.argument("source")
 def show(source: str) -> None:
-    """Print SOURCE's fields as JSON given a config name, a trained archive
-    or a config JSON file.
+    """Print SOURCE's config fields as JSON given a config name, a trained archive,
+    a file by `puppibuff sample` or a config JSON file.
 
     Pipe it into a file to edit and use it as `train --config-file`.
     """

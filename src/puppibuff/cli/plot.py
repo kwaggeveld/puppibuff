@@ -1,25 +1,23 @@
-from .. import from_zip
-from .common import apply_style, COUNT, figure_path, timed
+from .common import (apply_style, COUNT, figure_path, is_archive,
+                     N_SAMPLES_DEFAULT, timed)
+from .sample import read_config, read_samples, sample_model
 
 import click
 import numpy as np
 
 #-----------------------------------------------------------------------------
 
-N_SAMPLES_DEFAULT = 1_000_000
-
-
 def plot_options(command):
     """The arguments every plotter takes. Applied in reverse so `--help` lists
     them in the order written here.
     """
     options = [
-        click.argument("model", type = click.Path(exists = True)),
+        click.argument("source", type = click.Path(exists = True)),
         click.option("-n", "--n-samples", type = COUNT,
                      default = N_SAMPLES_DEFAULT, show_default = True,
-                     help = "Number of samples."),
+                     help = "Number of samples, if SOURCE is a model."),
         click.option("-s", "--seed", type = int,
-                     help = "Set sampler seed."),
+                     help = "Sampler seed, if SOURCE is a model."),
         click.option("--train-overlay", type = bool, 
                      default = True, show_default = True,
                      help = "Include training dataset overlay."),
@@ -35,16 +33,33 @@ def plot_options(command):
     return command
 
 
+def refuse_options(*names: str) -> None:
+    """Refuse options `*names` if they are set."""
+    context = click.get_current_context()
+
+    given = [ f"--{ name.replace('_', '-') }" for name in names
+              if context.get_parameter_source(name)
+                 is not click.ParameterSource.DEFAULT ]
+
+    if given:
+        raise click.BadParameter(
+            f"Pass `{ '`, `'.join(given) }` only with a model archive. "
+            f"`{ context.params['source'] }` already holds samples."
+        )
+
+
 def draw(
     plotter: str, 
-    model: str, 
+    source: str, 
     n_samples: int, 
     seed: int | None,
     train_overlay: bool, 
     output: str | None,
     show: bool
 ) -> None:
-    """Sample `model`'s archive and draw it against the dataset it was trained on."""
+    """Draw `source`'s samples against the target dataset behind them, sampling them
+    first when `source` is a model rather than a sample file.
+    """
     from ..analyses import plot_contours, plot_distributions, plot_histograms
 
     apply_style()
@@ -55,15 +70,17 @@ def draw(
         "contours":      plot_contours,
     }
 
-    config, codec, flowbdt = timed("Loading model", from_zip, model)
+    if is_archive(source):
+        config, codec, raw = sample_model(source, n_samples, seed)
+        samples = codec.decode(raw)
+    else:
+        refuse_options("n_samples", "seed")
 
-                                        # Overrides saved rng
-    rng = None if seed is None else np.random.default_rng(seed)
+        arrays  = np.load(source)
+        config  = read_config(arrays)
+        samples = read_samples(arrays)
 
     data = config.dataset()             # Uses tqdm
-
-    raw     = timed(f"Sampling { n_samples }", flowbdt.sample, n_samples, rng = rng)
-    samples = codec.decode(raw)
 
     figure = timed(f"Drawing { plotter }", plotters[plotter], data, samples,
                    n_events = config.n_events if train_overlay else None)
@@ -74,7 +91,7 @@ def draw(
         plt.show()
         return
 
-    path = figure_path(plotter, model, output)
+    path = figure_path(plotter, source, output)
     figure.savefig(path, format = "pdf")
 
     click.echo(f"Wrote { path }.")
@@ -82,7 +99,11 @@ def draw(
 
 @click.group()
 def plot() -> None:
-    """Draw a trained model against the dataset it was trained on."""
+    """Draw a model or samples by `puppibuff sample` against its dataset.
+
+    SOURCE is either a model archive, which is sampled first, or an `.npz` of
+    samples, which get drawn immediately.
+    """
 
 
 @plot.command()
