@@ -20,37 +20,39 @@ def _density_ratio(sample: NDArray, ref: NDArray) -> NDArray:
     return ratio(sample, np.where(ref < ref.max() * 1e-3, 0.0, ref))
 
 
-def _panel(ax: Axes, rax: Axes, name: str, target: NDArray, sample: NDArray,
+def _panel(ax: Axes, rax: Axes | None, name: str, target: NDArray, sample: NDArray | None,
            train: NDArray | None, points: int) -> None:
-    """One kinematic channel: target/sample/(optional train) Gaussian-KDE
-    densities on a shared evaluation grid, plus a ratio panel. The smooth-curve
-    counterpart of `histograms`' panel.
+    """One kinematic channel: target/(optional) sample/(optional train)
+    Gaussian-KDE densities on a shared evaluation grid, plus a ratio panel if
+    given a `rax`. The smooth-curve counterpart of `histograms`' panel.
     """
                                         # Shared grid so the curves and their
                                         # ratio are directly comparable
-    grid = np.linspace(min(target.min(), sample.min()),
-                       max(target.max(), sample.max()), points)
+    spanned = [ values for values in (target, sample) if values is not None ]
+    grid    = np.linspace(min(values.min() for values in spanned),
+                          max(values.max() for values in spanned), points)
 
     dens_target = kde(target)(grid)
-    dens_sample = kde(sample)(grid)
+    dens_sample = None if sample is None else kde(sample)(grid)
+    dens_train  = None if train  is None else kde(train)(grid)  # Cut of dataset given?
 
     ax.fill_between(grid, dens_target, **TARGET)
-    ax.plot(grid, dens_sample, color = SAMPLE_C, **SAMPLE)
-
-    ratio_train = None
-    if train is not None:               # Cut of dataset given?
-        dens_train = kde(train)(grid)
+    if dens_sample is not None:
+        ax.plot(grid, dens_sample, color = SAMPLE_C, **SAMPLE)
+    if dens_train is not None:
         ax.plot(grid, dens_train, color = TRAIN_C, **TRAIN)
-        ratio_train = _density_ratio(dens_sample, dens_train)
 
-    plot_ratio(rax, grid, _density_ratio(dens_sample, dens_target), ratio_train, step = False)
+    if rax is not None and dens_sample is not None:
+        plot_ratio(rax, grid, _density_ratio(dens_sample, dens_target),
+                   None if dens_train is None else _density_ratio(dens_sample, dens_train),
+                   step = False)
     finish_panel(ax, rax, name, "Density")
     set_xlims(ax, grid[0], grid[-1])
 
 
 def plot_distributions(
     target: Dataset,                    # Truth channels (+ `real` for jets)
-    sample: dict[str, NDArray],         # Decoded, generated channels
+    sample: dict[str, NDArray] | None,  # Decoded, generated channels; `None` => target only
     channels: list[str] | None = None,
     n_events: int | None = None,        # Cut => overlay the trained-on subset
     points: int = 200,                  # KDE evaluation-grid resolution

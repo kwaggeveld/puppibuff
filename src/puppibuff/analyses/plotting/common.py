@@ -106,22 +106,23 @@ def _third_series(target: Dataset, overlay: dict[str, NDArray] | None,
 
 def channel_data(
     target: Dataset,
-    sample: dict[str, NDArray],
+    sample: dict[str, NDArray] | None,
     channels: list[str] | None,
     n_events: int | None,
     overlay: dict[str, NDArray] | None = None,
 ) -> tuple[Events, Events, Events | None]:
     """Construct the `(target, sample, third)` arrays every plotter draws, with
     jet padding dropped. The third series is the trained-on cut of `target`, or
-    a supplied `overlay`, or `None` when neither is given.
+    a supplied `overlay`, or `None` when neither is given. A `None` sample gives
+    an empty dict.
     """
-    jet      = "real" in sample
+    jet      = "real" in target.channels()
     channels = channels or [ channel for channel in target.channels() if channel != "real" ]
 
     third = _third_series(target, overlay, n_events)
 
     return (_unpad(target, channels, target["real"] if jet else None),
-            _unpad(sample, channels, sample["real"] if jet else None),
+            {} if sample is None else _unpad(sample, channels, sample["real"] if jet else None),
             None if third is None else _unpad(third, channels, third["real"] if jet else None))
 
 #--- Panel scaffolding ---
@@ -129,15 +130,19 @@ def channel_data(
 PANEL_ASPECT = 1.25                     # Panel height (main + ratio) / width
 
 
-def make_grid(n_cols: int, width: float) -> tuple[Figure, NDArray]:
-    """Return a 2-row (main + ratio) * `n_cols` grid, `width` inches across."""
+def make_grid(n_cols: int, width: float, ratios: bool = True) -> tuple[Figure, NDArray]:
+    """Return a 2-row (main + ratio) * `n_cols` grid, `width` inches across.
+    Without `ratios` the grid is the main row alone, its panels the same size.
+    """
+    heights = [3, 1] if ratios else [3]
+
     fig, axes = plt.subplots(
-        2, n_cols, figsize = (width, width / n_cols * PANEL_ASPECT),
-        sharex = "col", gridspec_kw = { "height_ratios": [3, 1] },
+        len(heights), n_cols, figsize = (width, width / n_cols * PANEL_ASPECT * sum(heights) / 4),
+        sharex = "col", gridspec_kw = { "height_ratios": heights },
     )
     fig.set_layout_engine("constrained", hspace = 0.0, wspace = 0.06)
 
-    return fig, np.reshape(axes, (2, n_cols))
+    return fig, np.reshape(axes, (len(heights), n_cols))
 
 
 RATIO_BAND = 0.1                        # 1 +/- this fraction is shaded
@@ -193,11 +198,13 @@ def set_xlims(ax: Axes, low: float, high: float) -> None:
     ax.set_xlim(low - pad, high + pad)
 
 
-def finish_panel(ax: Axes, rax: Axes, name: str, ylabel: str) -> None:
-    """Shared axis labels for one main + ratio column."""
+def finish_panel(ax: Axes, rax: Axes | None, name: str, ylabel: str) -> None:
+    """Shared axis labels for one main + (optional) ratio column."""
     ax.set_ylabel(ylabel)
-    rax.set_ylabel("Ratio")
-    rax.set_xlabel(label(name))
+    (ax if rax is None else rax).set_xlabel(label(name))
+
+    if rax is not None:
+        rax.set_ylabel("Ratio")
 
 
 def _multiplicity(real: NDArray) -> NDArray:
@@ -210,40 +217,39 @@ def _fractions(multiplicity: NDArray, length: int) -> NDArray:
     return np.bincount(multiplicity, minlength = length) / len(multiplicity)
 
 
-def multiplicity_panel(ax: Axes, rax: Axes, target_real: NDArray,
-                       sample_real: NDArray, train_real: NDArray | None) -> None:
-    """Create bar chart of target/sample/(optional third series) jet-count
-    fractions on a shared integer axis, plus a ratio panel. NB: the shared bin
-    length spans target and sample only, so an `overlay` reaching a higher
-    multiplicity than either would not fit the bars.
+def multiplicity_panel(ax: Axes, rax: Axes | None, target_real: NDArray,
+                       sample_real: NDArray | None, train_real: NDArray | None) -> None:
+    """Create bar chart of target/(optional) sample/(optional third series)
+    jet-count fractions on a shared integer axis, plus a ratio panel when there
+    is a sample.
     """
     target = _multiplicity(target_real)
-    sample = _multiplicity(sample_real)
+    sample = None if sample_real is None else _multiplicity(sample_real)
 
-    length = max(target.max(), sample.max()) + 1     # Shared integer bins
+    length = max(target.max(), 0 if sample is None else sample.max()) + 1       # Shared integer bins
     bins   = np.arange(length)
     frac_target = _fractions(target, length)
-    frac_sample = _fractions(sample, length)
+    frac_sample = None if sample     is None else _fractions(sample, length)
+    frac_train  = None if train_real is None else _fractions(_multiplicity(train_real), length)
 
     ax.bar(bins, frac_target, width = 1.0, **TARGET)
-    ax.bar(bins, frac_sample, width = 1.0, fill = False, edgecolor = SAMPLE_C, **SAMPLE)
-
-    ratio_train = None
-    if train_real is not None:          # Cut of dataset given?
-        frac_train = _fractions(_multiplicity(train_real), length)
+    if frac_sample is not None:
+        ax.bar(bins, frac_sample, width = 1.0, fill = False, edgecolor = SAMPLE_C, **SAMPLE)
+    if frac_train is not None:          # Cut of dataset given?
         ax.bar(bins, frac_train, width = 1.0, fill = False, edgecolor = TRAIN_C, **TRAIN)
-        ratio_train = ratio(frac_sample, frac_train)
 
-    plot_ratio(rax, bins, ratio(frac_sample, frac_target), ratio_train, step = True)
+    if rax is not None and frac_sample is not None:
+        plot_ratio(rax, bins, ratio(frac_sample, frac_target),
+                   None if frac_train is None else ratio(frac_sample, frac_train), step = True)
     finish_panel(ax, rax, "multiplicity", "Jet fraction")
 
                                         # Integer ticks
-    rax.xaxis.set_major_locator(MaxNLocator(integer = True))
+    ax.xaxis.set_major_locator(MaxNLocator(integer = True))
 
 
 def plot_grid(
     target: Dataset,
-    sample: dict[str, NDArray],
+    sample: dict[str, NDArray] | None,
     channels: list[str] | None,
     n_events: int | None,
     panel: Callable,
@@ -257,23 +263,26 @@ def plot_grid(
     where `resolution` is the histogram bin count or the KDE grid size. Return
     `(fig, axes, columns)`, where `columns` names what each column plots.
     """
-    jet = "real" in sample
+    jet    = "real" in target.channels()
+    ratios = sample is not None         # Nothing to take a ratio of otherwise
     truth, sampled, train = channel_data(target, sample, channels, n_events, overlay)
 
                                         # Leading multiplicity column for jets
     columns = ([ "multiplicity" ] if jet else []) + list(truth)
     offset  = len(columns) - len(truth)
 
-    fig, axes = make_grid(len(columns), width)
+    fig, axes = make_grid(len(columns), width, ratios)
+    raxes     = axes[1] if ratios else [ None ] * len(columns)
 
     if jet:                             # First panel: multiplicity distribution
         third = _third_series(target, overlay, n_events)
-        multiplicity_panel(axes[0, 0], axes[1, 0], target["real"], sample["real"],
-                           None if third is None else third["real"])
+        multiplicity_panel(axes[0, 0], raxes[0], target["real"],
+                           None if sample is None else sample["real"],
+                           None if third  is None else third["real"])
 
     for column, channel in enumerate(truth, start = offset):
-        panel(axes[0, column], axes[1, column], channel,
-              truth[channel], sampled[channel],
+        panel(axes[0, column], raxes[column], channel,
+              truth[channel], sampled.get(channel),
               None if train is None else train[channel], resolution)
 
     return fig, axes, columns

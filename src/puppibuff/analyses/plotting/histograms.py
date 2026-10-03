@@ -21,34 +21,33 @@ def _hist(ax: Axes, values: NDArray, edges: NDArray, **kwargs) -> NDArray:
     return np.asarray(counts)
 
 
-def _panel(ax: Axes, rax: Axes, name: str, target: NDArray, sample: NDArray,
+def _panel(ax: Axes, rax: Axes | None, name: str, target: NDArray, sample: NDArray | None,
            training_cut: NDArray | None, bins: int) -> None:
-    """One kinematic channel: target/sample/(optional third series) density
-    histograms on shared bin edges, plus a ratio panel.
+    """One kinematic channel: target/(optional) sample/(optional third series)
+    density histograms on shared bin edges, plus a ratio panel if given a `rax`.
     """
                                         # Shared bin edges so the histograms are
                                         # directly comparable
-    series  = [ target, sample ] + ([] if training_cut is None else [ training_cut ])
+    series  = [ values for values in (target, sample, training_cut) if values is not None ]
     edges   = np.histogram_bin_edges(np.concatenate(series), bins = bins)
     centers = 0.5 * (edges[:-1] + edges[1:])
 
     hist_target = _hist(ax, target, edges, histtype = "stepfilled", **TARGET)
-    hist_sample = _hist(ax, sample, edges, histtype = "step", color = SAMPLE_C, **SAMPLE)
+    hist_sample = (None if sample is None else
+                   _hist(ax, sample, edges, histtype = "step", color = SAMPLE_C, **SAMPLE))
+    hist_train  = (None if training_cut is None else    # Cut of dataset given?
+                   _hist(ax, training_cut, edges, histtype = "step", color = TRAIN_C, **TRAIN))
 
-    ratio_train = None
-    if training_cut is not None:        # Cut of dataset given?
-        hist_train  = _hist(ax, training_cut, edges, histtype = "step",
-                            color = TRAIN_C, **TRAIN)
-        ratio_train = ratio(hist_sample, hist_train)
-
-    plot_ratio(rax, centers, ratio(hist_sample, hist_target), ratio_train, step = True)
+    if rax is not None and hist_sample is not None:
+        plot_ratio(rax, centers, ratio(hist_sample, hist_target),
+                   None if hist_train is None else ratio(hist_sample, hist_train), step = True)
     finish_panel(ax, rax, name, "Density")
     set_xlims(ax, edges[0], edges[-1])
 
 
 def plot_histograms(
     target: Dataset,                    # Truth channels (+ `real` for jets)
-    sample: dict[str, NDArray],         # Decoded, generated channels
+    sample: dict[str, NDArray] | None,  # Decoded, generated channels; `None` => target only
     channels: list[str] | None = None,
     n_events: int | None = None,        # Cut => overlay the trained-on subset
     bins: int = 75,
@@ -57,12 +56,13 @@ def plot_histograms(
     labels: dict[str, str] | None = None,       # Rename series, keyed on default label
 ) -> Figure:
     """Binned target/sample/(optional third series) distributions with ratio
-    panels. Dispatches on `"real" in sample`: padded jet data gets a leading
+    panels. Dispatches on `"real" in target.channels()`: padded jet data gets a leading
     multiplicity bar panel and has its padding masked off; flat data gets one
     column per channel.
 
     The third series is the trained-on cut of `target` (`n_events`), or an
-    `overlay` of decoded channels (eg. HLS sample).
+    `overlay` of decoded channels (eg. HLS sample). A `None` sample draws the
+    target (and any third series) alone, without the ratio row.
     """
     fig, axes, columns = plot_grid(target, sample, channels, n_events, _panel, bins,
                                    width, overlay = overlay)
