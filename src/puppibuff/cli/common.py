@@ -1,8 +1,15 @@
+from __future__ import annotations
+
 import sys
 import time
 from pathlib import Path
 
 import click
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..configs import Config
 
 #-----------------------------------------------------------------------------
 
@@ -19,6 +26,8 @@ ERASE_LINE = "\r\x1b[K"                 # Back to column 0, then clear the rest
 
 OUTPUT_DIR = "output"                   # Under the cwd
 
+CONFIG_DEFAULT = "FlatPuppiJetConfig"
+
 def timed(label: str, call, *args, **kwargs):
     """Announce a step before running, and report the time it took."""
     in_terminal = sys.stderr.isatty()   # Only overwrite in live terminals
@@ -34,11 +43,20 @@ def timed(label: str, call, *args, **kwargs):
 
 
 class Count(click.ParamType):
-    """A number of events, written as `N` or as `1eN`."""
+    """A number of events, written as `N` or as `1eN`. `all` is parsed to `None`."""
 
-    name = "count"
+    name = "int"
 
-    def convert(self, value, param, ctx) -> int:
+    def __init__(self, all: str | None = None) -> None:
+        self.all = all
+
+        if all is not None:
+            self.name = f"int|{ all }"
+
+    def convert(self, value, param, ctx) -> int | None:
+        if value == self.all:
+            return None
+
         try:
             return int(float(value))
         except (TypeError, ValueError):
@@ -53,3 +71,34 @@ def figure_path(kind: str, source: str, output: str | None) -> Path:
     outdir.mkdir(parents = True, exist_ok = True)
 
     return outdir / f"{ Path(source).stem }.pdf"
+
+
+def config_names() -> list[str]:
+    """Every built-in config."""
+    from .. import configs
+
+    return [ name for name in configs.__all__ if name != "Config" ]
+
+
+def resolve_config(spec: str) -> type[Config]:
+    """The config class `spec` names, as a built-in's name or as a
+    `module:Class` path.
+    """
+    from .. import configs
+    from ..utils import import_class
+
+    if ":" not in spec:                 # Built-in config, add its tag
+        if spec not in config_names():
+            raise click.BadParameter(
+                f"Unknown config { spec !r}. Built in: "
+                f"{ ', '.join(config_names()) }."
+            )
+
+        spec = f"{ configs.__name__ }:{ spec }"
+    elif "" not in sys.path:
+        sys.path.insert(0, "")
+
+    try:
+        return import_class(spec)
+    except (AttributeError, ImportError) as error:
+        raise click.BadParameter(f"Could not import { spec }: { error }.")
