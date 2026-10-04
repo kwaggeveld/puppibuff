@@ -29,6 +29,8 @@ OUTPUT_DIR = "output"                   # Under the cwd
 
 CONFIG_DEFAULT = "FlatPuppiJetConfig"
 N_SAMPLES_DEFAULT = 1_000_000
+                                        # Every argument naming a file to read
+EXISTING_FILE = click.Path(exists = True, dir_okay = False)
 
 def timed(label: str, call, *args, **kwargs):
     """Announce a step before running, and report the time it took."""
@@ -61,7 +63,7 @@ class Count(click.ParamType):
 
         try:
             return int(float(value))
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             self.fail(f"{ value !r} is not a number of events.", param, ctx)
 
 COUNT = Count()
@@ -79,7 +81,11 @@ def is_archive(path: str) -> bool:
     """Whether `path` is a model archive or a `.npz` containing samples."""
     from ..utils import MODEL_FILE
 
-    return is_zipfile(path) and MODEL_FILE in ZipFile(path).namelist()
+    if not is_zipfile(path):           
+        return False
+
+    with ZipFile(path) as archive:      # `.npz` is a zip too
+        return MODEL_FILE in archive.namelist()
 
 
 def config_names() -> list[str]:

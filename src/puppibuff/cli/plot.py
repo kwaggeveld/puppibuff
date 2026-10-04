@@ -1,6 +1,8 @@
-from .common import (apply_style, COUNT, figure_path, is_archive,
-                     N_SAMPLES_DEFAULT, timed)
+from .common import (apply_style, COUNT, EXISTING_FILE, figure_path,
+                     is_archive, N_SAMPLES_DEFAULT, timed)
 from .sample import read_config, read_samples, sample_model
+
+from zipfile import is_zipfile
 
 import click
 import numpy as np
@@ -12,7 +14,7 @@ def plot_options(command):
     them in the order written here.
     """
     options = [
-        click.argument("source", type = click.Path(exists = True)),
+        click.argument("source", type = EXISTING_FILE),
         click.option("-n", "--n-samples", type = COUNT,
                      default = N_SAMPLES_DEFAULT, show_default = True,
                      help = "Number of samples, if SOURCE is a model."),
@@ -69,6 +71,11 @@ def draw(
         "distributions": plot_distributions,
         "contours":      plot_contours,
     }
+
+    if not is_zipfile(source):
+        raise click.BadParameter(
+            f"{ source } is neither a model archive nor an `.npz` of samples."
+        )
 
     if is_archive(source):
         config, codec, raw = sample_model(source, n_samples, seed)

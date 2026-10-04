@@ -19,8 +19,11 @@ def file_config(path: str) -> dict:
     from ..configs import Config
     from ..utils import CONFIG_FILE
 
-    if not is_zipfile(path):
-        return Config.from_json(path).to_dict()
+    if not is_zipfile(path):            # Loose config JSON
+        try:
+            return Config.from_json(path).to_dict()
+        except json.JSONDecodeError:
+            raise click.BadParameter(f"{ path } is no config JSON.")
 
     if not is_archive(path):            # Samples
         return config_json(np.load(path))
@@ -53,8 +56,8 @@ def show(source: str) -> None:
 
     Pipe it into a file to edit and use it as `train --config-file`.
     """
-
-    fields = (file_config(source) if Path(source).exists()
+    
+    fields = (file_config(source) if Path(source).is_file()
               else resolve_config(source)().to_dict())
 
     click.echo(json.dumps(fields, indent = 2))

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from .. import from_zip
 from ..utils import initial_noise
-from .common import (apply_style, COUNT, figure_path, N_SAMPLES_DEFAULT,
-                     OUTPUT_DIR, timed)
+from .common import (apply_style, COUNT, EXISTING_FILE, figure_path,
+                     N_SAMPLES_DEFAULT, OUTPUT_DIR, timed)
 
 from pathlib import Path
 
@@ -98,7 +98,7 @@ def hls() -> None:
 
 
 @hls.command()
-@click.argument("model", type = click.Path(exists = True))
+@click.argument("model", type = EXISTING_FILE)
 @click.option("-o", "--output", type = click.Path(file_okay = False),
               help = "HLS project directory  [default: ./output/hls/<model>/]")
 @click.option("--per-bdt", is_flag = True,
@@ -144,7 +144,7 @@ def build(workdir: str) -> None:
 
 @hls.command()
 @click.argument("workdir", type = click.Path(file_okay = False))
-@click.argument("model", type = click.Path(exists = True))
+@click.argument("model", type = EXISTING_FILE)
 @click.option("-n", "--n-samples", type = COUNT, default = N_SAMPLES_DEFAULT,
               show_default = True,
               help = "Events to generate with each sampler from shared noise.")
@@ -182,8 +182,8 @@ def sample(workdir: str, model: str, n_samples: int, encoded: bool) -> None:
 
 
 @hls.command()
-@click.argument("samples", type = click.Path(exists = True, dir_okay = False))
-@click.argument("model", type = click.Path(exists = True))
+@click.argument("samples", type = EXISTING_FILE)
+@click.argument("model", type = EXISTING_FILE)
 @click.option("-o", "--output", type = click.Path(file_okay = False),
               help = "Output directory  [default: ./output/hls/]")
 def plot(samples: str, model: str, output: str | None) -> None:
