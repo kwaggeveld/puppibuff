@@ -13,6 +13,8 @@ authors = [
     { name = "Koen Waggeveld", email = "k.c.waggeveld@student.rug.nl" },
 ]
 dependencies = [
+    "click",
+    "lazy-loader",
     "numpy",
     "matplotlib",
     "scipy",
@@ -23,6 +25,9 @@ dependencies = [
     "conifer >= 1.9",
     "pandas",                           # Undeclared by conifer, but imported by
 ]                                       # its xgboost converter
+
+[project.scripts]
+puppibuff = "puppibuff.cli:main"
 
 [project.optional-dependencies]
 scripts = [
@@ -43,7 +48,7 @@ dev = [
 where = ["src"]
 
 [tool.setuptools.package-data]
-"puppibuff" = ["*.mplstyle"]
+"puppibuff" = ["*.mplstyle", "*.pyi"]   # `__init__.pyi` is read at runtime
 "puppibuff.hls" = ["firmware/*"]
 "puppibuff.codecs" = ["firmware/*"]
 

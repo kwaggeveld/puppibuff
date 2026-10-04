@@ -77,18 +77,27 @@ class Config(ABC):
 
 # --- Export/import ---
 
+    def to_dict(self) -> dict:
+        """Export as a dict every stored field, together with the config class name."""
+        return { "config_cls": class_path(type(self)) } | asdict(self)
+
     def to_json(self, path: str) -> None:
         if type(self).__module__ == "__main__":
             print(f"{ type(self).__name__ } is defined in __main__, so this "
                   f"archive can only be loaded in a session that defines it.")
 
         with open(path, "w") as file:
-            json.dump({ "config_cls": class_path(type(self)) } | asdict(self), file)
+            json.dump(self.to_dict(), file)
+
+    @classmethod
+    def from_dict(cls, fields: dict) -> Config:
+        """Construct whichever Config the dict's `config_cls` tag names."""
+        fields = dict(fields)           # Make a copy
+
+        return import_class(fields.pop("config_cls"))(**fields)
 
     @classmethod
     def from_json(cls, path: str) -> Config:
         """Construct whichever Config the file's `config_cls` tag names."""
         with open(path) as file:
-            fields = json.load(file)
-
-        return import_class(fields.pop("config_cls"))(**fields)
+            return cls.from_dict(json.load(file))

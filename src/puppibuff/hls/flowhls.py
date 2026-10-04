@@ -9,7 +9,7 @@ from . import write
 from .compile import compile_grid, compile_flowhls
 from .convert import convert_grid
 from .load import attach_bridge, import_bridge, load_grid
-from .utils import block_latency, merged_bridge, merged_build, project_paths
+from .utils import block_latency, is_merged, merged_bridge, project_paths
 
 import subprocess
 from pathlib import Path
@@ -66,19 +66,22 @@ class FlowHLS:
 
 
     @classmethod
-    def load(cls, work_dir: str = "flowhls") -> FlowHLS:
+    def load(cls, work_dir: str = "flowhls", attach: bool = True) -> FlowHLS:
         """Reuse a grid already converted and compiled into `work_dir`, binding
         whichever bridge `compile` built there.
+
+        `attach = False` binds a design that was written but not compiled,
+        enough for `build` or `write_payload`, not for `sample`.
         """
         root   = Path(work_dir).resolve()
-        merged = merged_build(root)
+        merged = is_merged(root)
                                         # The merged design keeps its BDTs under
                                         # `bdt_data`, and shares one bridge
-        grid = load_grid(root, attach = not merged)
+        grid = load_grid(root, attach = attach and not merged)
 
         hls = cls(grid, root, merged)
 
-        if merged:
+        if merged and attach:
             hls.bridge = import_bridge(merged_bridge(root))
 
         return hls

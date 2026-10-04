@@ -42,7 +42,7 @@ Codec   }
 pip install -e .
 ```
 
-Jet-clustering script need an extra:
+Jet-clustering script needs an extra:
 
 ```bash
 pip install -e ".[scripts]"
@@ -52,7 +52,63 @@ Each `Dataset` reads its input directory from an environment variable (`PUPPIJET
 
 ## Quick start
 
-Coming soon...
+Get an overview of CLI functionality:
+```bash
+puppibuff --help
+```
+
+Train a model, then look at its generated output:
+
+```bash
+export PUPPIJET_LOCATION=~/MinBias/PuppiJet
+
+puppibuff train models/my_run
+puppibuff plot histograms models/my_run --show
+```
+
+`train` writes one archive holding the config, codec and trained model together, which `puppibuff.from_zip` loads. `plot` methods display samples from such a model:
+
+```bash
+puppibuff plot histograms models/my_run -n 1e6 -s 0
+```
+
+See `puppibuff plot --help` for details. 
+
+### Moving to FPGA
+
+`puppibuff hls` translates a trained model to HLS firmware and checks it against its Python implementation:
+
+```bash
+puppibuff hls write  models/my_run -o outdir/            # Write HLS sources
+puppibuff hls build  outdir/                             # Synthesise sources
+puppibuff hls sample outdir/ models/my_run -n 1e5        # Sample firmware and Python
+puppibuff hls plot   outdir/outdir_samples.npz models/my_run
+```
+
+See `puppibuff hls --help` for details. 
+
+### In Python
+
+The CLI trains on each `Config`'s defaults. Configure them in Python:
+
+```python
+from puppibuff import to_zip
+from puppibuff.analyses import plot_histograms
+from puppibuff.configs import FlatPuppiJetConfig
+
+config = FlatPuppiJetConfig(n_steps = 15, n_events = 500_000, seed = 0)
+config.tree_config["max_depth"] = 6
+
+data, codec, model, x, y = config.setup()   # Load, encode, build training paths
+model.fit(x, y)
+
+samples = codec.decode(model.sample(1_000_000))
+figure  = plot_histograms(data, samples, n_events = config.n_events)
+
+to_zip("models/my_run", config, codec, model)
+```
+
+To train on your own data, subclass `Dataset`, load your set by overriding `_load`, and let `s_CHANNELS` name them. Pair that with a `Codec` in your own `Config`.
 
 ## Related works
 

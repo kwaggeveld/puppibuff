@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from puppibuff import from_zip
 from puppibuff.analyses import plot_histograms
-from puppibuff.hls import constants, FlowHLS
+from puppibuff.cli.common import timed
+from puppibuff.cli.hls import build_hls
+from puppibuff.hls import constants
 from puppibuff.utils import initial_noise, output_dir
 
 import sys
-import time
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -17,32 +18,6 @@ plt.style.use("puppibuff.style")
 N_SAMPLES  = 1_000_000
 N_HLS      =    50_000
 
-MERGED     = True
-
-
-def timed(label: str, call, *args, **kwargs):
-    """Announce a step before it blocks, and report what it cost."""
-    print(f"{label}...", flush = True)
-    start  = time.time()
-    result = call(*args, **kwargs)
-    print(f"{label}: {time.time() - start:.1f} s", flush = True)
-
-    return result
-
-
-def build_hls(model, codec, workdir: str, reuse: bool) -> FlowHLS:
-    """Convert and compile the grid, or bind an existing build in `workdir`."""
-
-    if reuse:                           # `load` reads the layout off `workdir`
-        return timed("Loading compiled grid", FlowHLS.load, workdir)
-
-    hls = timed("Converting grid", FlowHLS.convert, model,
-                output_dir = workdir, merged = MERGED)
-    timed("Writing", hls.write, codec)
-    timed("Compiling", hls.compile, n_threads = 7)
-
-    return hls
-
 
 def main():                             # HLS project directory and the trained
     if len(sys.argv) < 3:               # archive both paths sample from
@@ -50,12 +25,10 @@ def main():                             # HLS project directory and the trained
 
     workdir = sys.argv[1]
 
-    reuse = Path(workdir).exists() and any(Path(workdir).rglob("bdt_s*_g*.json"))
-
     config, codec, model = from_zip(sys.argv[2])
     data = config.dataset()
 
-    hls = build_hls(model, codec, workdir, reuse)
+    hls = build_hls(model, codec, workdir)
 
     x0 = initial_noise((N_SAMPLES, hls.n_channels))
 
