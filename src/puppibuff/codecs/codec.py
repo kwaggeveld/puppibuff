@@ -24,8 +24,6 @@ class Codec(ABC):
     s_DECODE_PARAMS = "codec_params.hh"  # The Codec's fitted constants, 
                                         # which `decode.cpp` reads
 
-    multiplicity: int                   # Slots per event
-
     def __init__(self, s1phi: bool = False) -> None:  # Agrees with Config.s1phi
         self.s1phi = s1phi
 

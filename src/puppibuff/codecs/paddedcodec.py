@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .fixedmcodec import FixedMCodec
+from .jetcodec import JetCodec
 from ..datasets import Dataset
 
 import numpy as np
@@ -9,15 +9,17 @@ from numpy.typing import NDArray
 
 #-----------------------------------------------------------------------------
 
-class PaddedCodec(FixedMCodec):
-    """Same per-channel normalisation as FixedMCodec, but padded slots (real == 0)
+class PaddedCodec(JetCodec):
+    """Same per-channel normalisation as JetCodec, but padded slots (real == 0)
     are excluded from the fitted statistics and zeroed in normalised space. An
     extra `real` existence-flag channel is passed through so a fixed-M model
     can represent variable multiplicity.
     """
 
-    s_REQUIRED = FixedMCodec.s_REQUIRED + [ "real" ]
-    s_DECODED  = FixedMCodec.s_DECODED  + [ "real" ]
+    s_EXPORT_KEYS = JetCodec.s_EXPORT_KEYS + [ "multiplicity" ]
+
+    s_REQUIRED = JetCodec.s_REQUIRED + [ "real" ]
+    s_DECODED  = JetCodec.s_DECODED  + [ "real" ]
 
     def fit(self, data: Dataset) -> None:
         self._check_channels(data)
@@ -26,9 +28,13 @@ class PaddedCodec(FixedMCodec):
         self._fit_stats(data["pt"][real], data["eta"][real], data["phi"][real])
 
                                         # phi -> (sin, cos) adds one extra channel
-        self.n_features   = len(data.channels()) + self.s1phi
+        self.n_features   = len(self.s_REQUIRED) + self.s1phi
         self.multiplicity = data["real"].shape[1]   # Slots per jet
 
+
+    def group_sizes(self) -> list[int]:
+        """One block of size `M` for each feature"""
+        return [ self.multiplicity ] * self.n_features
 
     def encode(self, data: Dataset) -> NDArray:
         real = data["real"].astype(np.float32)          # (n_events, M), 0/1

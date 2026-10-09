@@ -38,16 +38,12 @@ void decode(accum_arr_t x, decoded_arr_t decoded)
     #pragma HLS array_partition variable=x
     #pragma HLS array_partition variable=decoded
 
-    for (size_t idx = 0; idx != multiplicity; ++idx)
-    {
-        #pragma HLS unroll
-        decoded_t const pt  = expm1_lookup(x[idx] * pt_std + pt_mean);
-        decoded_t const eta = x[multiplicity + idx] * eta_std + eta_mean;
-        decoded_t const phi = wrap_phi(x[2 * multiplicity + idx]);
+    decoded_t const pt  = expm1_lookup(x[0] * pt_std + pt_mean);
+    decoded_t const eta = x[1] * eta_std + eta_mean;
+    decoded_t const phi = wrap_phi(x[2]);
 
-        decoded[idx]                    = pt;           // The LUT clips
-        decoded[multiplicity + idx]     = clip(eta, eta_min, eta_max);
-        decoded[2 * multiplicity + idx] = phi;          // `wrap_phi` rescales
-    }
+    decoded[0] = pt;                    // The LUT clips
+    decoded[1] = clip(eta, eta_min, eta_max);
+    decoded[2] = phi;                   // `wrap_phi` rescales
 }
 

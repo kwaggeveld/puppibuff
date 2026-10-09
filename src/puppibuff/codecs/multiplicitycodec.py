@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .fixedmcodec import FixedMCodec
+from .jetcodec import JetCodec
 from ..datasets import Dataset
 
 import numpy as np
@@ -9,15 +9,15 @@ from numpy.typing import NDArray
 
 #-----------------------------------------------------------------------------
 
-class MultiplicityCodec(FixedMCodec):
-    """Same per-channel normalisation as FixedMCodec, but variable multiplicity
+class MultiplicityCodec(JetCodec):
+    """Same per-channel normalisation as JetCodec, with variable multiplicity
     is encoded to a single scalar channel instead of one `real` flag per slot.
     """
 
-    s_EXPORT_KEYS = FixedMCodec.s_EXPORT_KEYS + [ "mult_mean", "mult_std" ]
+    s_EXPORT_KEYS = JetCodec.s_EXPORT_KEYS + [ "multiplicity", "mult_mean", "mult_std" ]
 
-    s_REQUIRED = FixedMCodec.s_REQUIRED + [ "real" ]
-    s_DECODED  = FixedMCodec.s_DECODED  + [ "real" ]
+    s_REQUIRED = JetCodec.s_REQUIRED + [ "real" ]
+    s_DECODED  = JetCodec.s_DECODED  + [ "real" ]
 
     def fit(self, data: Dataset) -> None:
         self._check_channels(data)
@@ -30,7 +30,7 @@ class MultiplicityCodec(FixedMCodec):
         self.mult_std  = float(log_mult.std())
 
                                         # phi -> (sin, cos) adds one extra channel
-        self.n_features   = len(data.channels()) - 1 + self.s1phi   # `real` dropped
+        self.n_features   = len(self.s_REQUIRED) - 1 + self.s1phi   # `real` dropped
         self.multiplicity = data["real"].shape[1]   # Slots per jet, lost by encode()
 
 

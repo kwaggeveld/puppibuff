@@ -346,16 +346,10 @@ class FlowHLS:
                 "A per-BDT layout has no `decode` HLS block, "
                 "so decode with the `Codec` itself."
             )
+                                        # One row per event
+        decoded = np.array(self.bridge.decode(_as_flat_f64(out))).reshape(len(out), -1)
 
-        codec = self.codec
-                                        # One channel-major row per event
-        decoded = (np.array(self.bridge.decode(_as_flat_f64(out)))
-                       .reshape(len(out), len(codec.s_DECODED), codec.multiplicity))
-
-        if codec.multiplicity == 1:     # If flat data, drop the slot axis
-            decoded = decoded[..., 0]
-
-        return dict(zip(codec.s_DECODED, np.moveaxis(decoded, 1, 0)))
+        return dict(zip(self.codec.s_DECODED, decoded.T))
 
 
 # --- Resources ---

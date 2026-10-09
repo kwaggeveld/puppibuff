@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from .config import Config
 from ..datasets import ToyJet, ToyConstituent
-from ..codecs import FixedMCodec, MultiplicityCodec
+from ..codecs import JetCodec, MultiplicityCodec
 
 from dataclasses import dataclass
 
@@ -11,7 +11,7 @@ from dataclasses import dataclass
 @dataclass
 class ToyJetConfig(Config):
     dataset = ToyJet
-    codec   = FixedMCodec
+    codec   = JetCodec
 
 
 @dataclass

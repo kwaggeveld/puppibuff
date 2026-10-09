@@ -10,21 +10,21 @@ from numpy.typing import NDArray
 
 #-----------------------------------------------------------------------------
 
-class FixedMCodec(Codec):
-    """Per-channel codec for fixed multiplicity M (pt, eta, phi) events.
+class JetCodec(Codec):
+    """Per-channel codec for flat (pt, eta, phi) jets.
 
     pt  -> log1p -> normalise (over all jets)
     eta -> normalise          (over all jets)
-    phi -> (sin_phi, cos_phi), or plain normalise if `s1phi = False`
+    phi -> (sin_phi, cos_phi), or normalise if `s1phi = False`
     """
 
     s_EXPORT_KEYS = [ channel + "_" + attr
                       for channel in ( "pt", "eta", "phi" )
                       for attr    in ( "mean", "std", "min", "max" )] \
-                    + [ "s1phi", "n_features", "multiplicity" ]
+                    + [ "s1phi", "n_features" ]
 
-    s_REQUIRED = [ "pt", "eta", "phi" ]  # Expected by `fit` and `encode` 
-    s_DECODED  = [ "pt", "eta", "phi" ]  # Returned by `decode`, for HLS
+    s_REQUIRED = [ "pt", "eta", "phi" ] # Expected by `fit` and `encode` 
+    s_DECODED  = [ "pt", "eta", "phi" ] # Returned by `decode`, for HLS
 
     s_FRACTION_BITS = 12                # Decoded outputs' fractional precision
 
@@ -34,33 +34,35 @@ class FixedMCodec(Codec):
     def fit(self, data: Dataset) -> None:
         self._check_channels(data)
 
+        if (padded_channels := [ channel for channel in self.s_REQUIRED if data[channel].ndim != 1 ]):
+            raise ValueError(f"{ type(self).__name__ } expects flat (N,) channels, "
+                             f"{ type(data).__name__ }'s { padded_channels } are not.")
+
         self._fit_stats(data["pt"], data["eta"], data["phi"])
 
-        self.n_features   = len(data.channels()) + self.s1phi   # phi -> (sin, cos) adds one
-        self.multiplicity = data["pt"].shape[1] if data["pt"].ndim == 2 else 1
+        self.n_features = len(self.s_REQUIRED) + self.s1phi   # phi -> (sin, cos) adds one
 
     def encode(self, data: Dataset) -> NDArray:
         encoded_channels = self._encode_channels(
             data["pt"], data["eta"], data["phi"]
         )
-                                        # from 4 x (N, M) to (N, 4, M)
-        return np.stack([*encoded_channels], axis = 1)
+                                        # (N, n_features)
+        return np.column_stack(encoded_channels)
 
 
     def decode(self, out: NDArray) -> dict[str, NDArray]:
-        encoded_channels = np.moveaxis(out, 1, 0)
-        return self._decode_channels(*encoded_channels)
+        return self._decode_channels(*out.T)
 
 
     def group_sizes(self) -> list[int]:
-        """One block of size `M` for each feature"""
-        return [self.multiplicity] * self.n_features
+        """One single-output BDT per column."""
+        return [ 1 ] * self.n_features
 
 
     @property
     def n_decoded(self) -> int:
-        """Every decoded channel, for every slot."""
-        return len(self.s_DECODED) * self.multiplicity
+        """Every decoded channel."""
+        return len(self.s_DECODED)
 
 
     @property
@@ -115,13 +117,11 @@ class FixedMCodec(Codec):
                 "Fit the codec with s1phi = False."
             )
 
-        return fill_template("puppibuff.codecs", "fixedmcodec.cpp")
+        return fill_template("puppibuff.codecs", "jetcodec.cpp")
 
 
     def decode_params_hh(self) -> str:
         return fill_template("puppibuff.codecs", self.s_DECODE_PARAMS,
-            multiplicity = self.multiplicity,
-
             pt_mean  = self.pt_mean,
             pt_std   = self.pt_std,
             eta_mean = self.eta_mean,

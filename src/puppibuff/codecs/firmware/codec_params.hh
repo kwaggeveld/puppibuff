@@ -2,8 +2,6 @@
 #define CODEC_PARAMS_HH_
 
 #include "ap_types.hh"
-                                        // Slots per event
-static size_t const multiplicity = **multiplicity**;
 
                                         // Fitted statistics.
 static accum_t   const pt_mean  = **pt_mean**;
