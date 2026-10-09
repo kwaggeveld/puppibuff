@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ..datasets import Dataset
+from ..utils import Source
 from ..configs.config import DEFAULT_TREE_CONFIG
 
 import numpy as np
@@ -12,9 +12,6 @@ from xgboost import XGBClassifier
 from numpy.typing import NDArray
 
 #-----------------------------------------------------------------------------
-
-Source = Dataset | dict[str, NDArray]   # Anything indexable by channel name
-
 
 def _channels(data: Source, channels: list[str] | None) -> list[str]:
     """Explicit channel list, else every channel `data` carries."""

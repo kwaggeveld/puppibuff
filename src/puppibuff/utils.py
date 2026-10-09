@@ -10,11 +10,12 @@ from zipfile import ZipFile, ZIP_DEFLATED
 import numpy as np
 
 from numpy.typing import NDArray
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Mapping, TypeAlias
 
 if TYPE_CHECKING:                       # Runtime imports are done in `from_zip`.
     from .codecs import Codec           # `flowbdt` imports this file -> circular
     from .configs import Config
+    from .datasets import Dataset
     from .flowbdt import FlowBDT
 
 #-----------------------------------------------------------------------------
@@ -120,3 +121,31 @@ def from_zip(path: str) -> tuple[Config, Codec, FlowBDT]:
     _, model.rng = config.rngs()
 
     return config, codec, model
+
+
+Source: TypeAlias = "Dataset | Mapping[str, NDArray]"
+
+
+def real_mask(mask: NDArray) -> NDArray:
+    """Boolean form of a `real` channel."""
+    return mask > .5
+
+
+def multiplicity(mask: NDArray) -> NDArray:
+    """Number of genuine constituents per jet from an `(N, M)` `real` channel."""
+    return real_mask(mask).sum(axis = 1)
+
+
+def flatten(source: Source, channels: list[str] | None = None) -> dict[str, NDArray]:
+    """One 1-D array per channel. Padded jets with a `real` channel drop their
+    padding and get a leading per-jet `multiplicity`.
+    """
+    channels = channels or [ channel for channel in source if channel != "real" ]
+
+    if "real" not in source:
+        return { channel: source[channel] for channel in channels }
+
+    genuine = real_mask(source["real"])
+
+    return ({ "multiplicity": multiplicity(source["real"]) }
+            | { channel: source[channel][genuine] for channel in channels })

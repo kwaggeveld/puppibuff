@@ -103,7 +103,7 @@ data, codec, model, x, y = config.setup()   # Load, encode, build training paths
 model.fit(x, y)
 
 samples = codec.decode(model.sample(1_000_000))
-figure  = plot_histograms(data, samples, n_events = config.n_events)
+figure  = plot_histograms(data, { "Output": samples, "Training": data[:config.n_events] })
 
 to_zip("models/my_run", config, codec, model)
 ```
