@@ -117,4 +117,6 @@ def from_zip(path: str) -> tuple[Config, Codec, FlowBDT]:
         codec  = Codec.from_json(str(staged / CODEC_FILE))
         model  = FlowBDT.from_disk(str(staged / MODEL_FILE))
 
+    _, model.rng = config.rngs()
+
     return config, codec, model

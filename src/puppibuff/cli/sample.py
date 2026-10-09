@@ -85,7 +85,7 @@ def sample_model(model: str, n_samples: int,
 
     config, codec, flowbdt = timed("Loading model", from_zip, model)
 
-                                        # Overrides the saved rng
+                                        # Overrides the config's seed
     rng = None if seed is None else np.random.default_rng(seed)
 
     raw = timed(f"Sampling { n_samples }", flowbdt.sample, n_samples, rng = rng)

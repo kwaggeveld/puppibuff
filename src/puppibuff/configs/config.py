@@ -65,7 +65,7 @@ class Config(ABC):
         codec = self.codec(self.s1phi)
         codec.fit(data)
         
-        train_rng, sample_rng = np.random.default_rng(self.seed).spawn(2)
+        train_rng, sample_rng = self.rngs()
 
         x1 = codec.encode(data[:self.n_events])
         x, y = build_trainds(x1, self.n_steps, x0, train_rng)
@@ -74,6 +74,11 @@ class Config(ABC):
         model = FlowBDT(self.tree_config, sizes, sample_rng)
 
         return data, codec, model, x, y
+
+    def rngs(self) -> tuple[np.random.Generator, np.random.Generator]:
+        """Split train- and sample rngs from saved seed"""
+        train_rng, sample_rng = np.random.default_rng(self.seed).spawn(2)
+        return train_rng, sample_rng
 
 # --- Export/import ---
 

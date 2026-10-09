@@ -111,8 +111,11 @@ class FlowBDT():
 # --- Export/import ---
 
     def to_disk(self, path: str) -> None:
-        """Persist the whole state, and export boosters to binary JSON."""
-        dump(self.__dict__ 
+        """Persist the whole state except for `rng`, and export boosters to 
+        binary JSON.
+        """
+        state = { key: value for key, value in self.__dict__.items() if key != "rng" }
+        dump(state
              | { "bdt_grid": [ bdt.get_booster().save_raw("ubj")
                                for bdt in self.bdt_grid.ravel() ]}, path)
 
