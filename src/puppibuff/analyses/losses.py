@@ -18,9 +18,7 @@ Source = Dataset | dict[str, NDArray]   # Anything indexable by channel name
 
 def _channels(data: Source, channels: list[str] | None) -> list[str]:
     """Explicit channel list, else every channel `data` carries."""
-    if channels is not None: 
-        return channels
-    return data.channels() if isinstance(data, Dataset) else list(data)
+    return channels or list(data)
 
 
 def channel_mse(real: NDArray, gen: NDArray, bins: int = 75) -> float:

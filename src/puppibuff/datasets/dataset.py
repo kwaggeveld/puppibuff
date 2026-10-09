@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import overload
+from typing import Iterator, overload
 
 from numpy.typing import NDArray
 
@@ -48,6 +48,9 @@ class Dataset(ABC):
         obj = object.__new__(type(self))
         obj.d_data = { channel: arr[key] for channel, arr in self.d_data.items() }
         return obj
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.s_CHANNELS)
 
     def channels(self) -> list[str]:
         """The channel names stored in the Dataset.
