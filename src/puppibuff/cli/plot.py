@@ -7,6 +7,11 @@ from zipfile import is_zipfile
 import click
 import numpy as np
 
+from typing import Callable, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..utils import Source
+
 #-----------------------------------------------------------------------------
 
 def plot_options(command):
@@ -66,7 +71,7 @@ def draw(
 
     apply_style()
 
-    plotters = {                        # The plotter each command uses
+    plotters: dict[str, Callable] = {   # The plotter each command uses
         "histograms":    plot_histograms,
         "distributions": plot_distributions,
         "contours":      plot_contours,
@@ -89,8 +94,11 @@ def draw(
 
     data = config.dataset()             # Uses tqdm
 
-    figure = timed(f"Drawing { plotter }", plotters[plotter], data, samples,
-                   n_events = config.n_events if train_overlay else None)
+    series: dict[str, Source] = { "Output": samples }
+    if train_overlay:
+        series["Training"] = data[:config.n_events]
+
+    figure = timed(f"Drawing { plotter }", plotters[plotter], data, series)
 
     if show:
         import matplotlib.pyplot as plt

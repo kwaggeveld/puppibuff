@@ -182,7 +182,7 @@ def main():  # NB: tqdm.write used instead of print() to preserve progress bar
         size = model_size(model, n_estimators, max_depth)
 
                                         # Only sampled vs target distributions
-        figure = plot_histograms(data, samples, n_events = None)
+        figure = plot_histograms(data, { "Output": samples })
         figure.suptitle(suptitle(grid_pt, size, per_channel, SW1), fontsize = 11)
 
         path = outdir / output_path(grid_pt)

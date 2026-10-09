@@ -19,7 +19,7 @@ def main():
     samples = codec.decode(raw_samples)
 
     figure = plot_histograms(
-        data, samples, n_events = config.n_events,
+        data, { "Output": samples, "Training": data[:config.n_events] },
     )
 
     figure.show()

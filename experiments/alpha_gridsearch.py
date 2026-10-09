@@ -25,7 +25,7 @@ def main():
         raw_samples = model.sample(500_000)
         samples = codec.decode(raw_samples)
 
-        figure = plot_histograms(data, samples, channels = ["pt"], width = 6.3 * 0.3)
+        figure = plot_histograms(data, { "Output": samples }, channels = ["pt"], width = 6.3 * 0.3)
         figure.savefig(outdir / f"alpha{alpha:g}.pdf", format = "pdf")
 
 

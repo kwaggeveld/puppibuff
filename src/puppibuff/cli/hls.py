@@ -203,9 +203,7 @@ def plot(samples: str, model: str, output: str | None) -> None:
                                         # HLS takes the primary slot so ratios
                                         # read HLS/target and HLS/XGBoost
     figure = timed("Drawing histograms", plot_histograms, data,
-                   sample  = sampled["hls"],
-                   overlay = sampled["xgb"],
-                   labels  = { "Output": "HLS", "Training": "Python" })
+                   { "HLS": sampled["hls"], "XGBoost": sampled["xgb"] })
 
     path = figure_path("hls", samples, output)
     figure.savefig(path, format = "pdf")

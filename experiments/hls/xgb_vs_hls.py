@@ -41,9 +41,7 @@ def main():                             # HLS project directory and the trained
                                         # HLS takes primary slot, ratios read
                                         # HLS/target and HLS/xgboost
     figure = plot_histograms(
-        data, codec.decode(hls_sample),
-        overlay = codec.decode(xgb_sample),
-        labels  = { "Output": "HLS", "Training": "XGBoost" },
+        data, { "HLS": codec.decode(hls_sample), "XGBoost": codec.decode(xgb_sample) },
     )
 
     path = output_dir(__file__) / f"{Path(workdir).name}_xgb_vs_hls.pdf"

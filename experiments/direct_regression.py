@@ -25,7 +25,7 @@ def main():
     samples = codec.decode(raw_samples)
     print(f"SW1 = { sliced_wasserstein(data, samples) :.4g}")
 
-    figure = plot_histograms(data, samples)
+    figure = plot_histograms(data, { "Output": samples })
 
     figure.savefig(output_dir(__file__) / "direct_regression.pdf")
 

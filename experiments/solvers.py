@@ -113,7 +113,8 @@ def main():
             if repeat > 0: continue     # One plot per method
 
             figure = plot_histograms(
-                data, samples, channels = CHANNELS, n_events = config.n_events,
+                data, { "Output": samples, "Training": data[:config.n_events] },
+                channels = CHANNELS,
             )
             figure.savefig(f"{outdir}/{label}.pdf")
             plt.close(figure)

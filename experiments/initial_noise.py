@@ -47,7 +47,7 @@ def main():
     samples = codec.decode(model.sample(500_000, x0 = x0))
 
     figure = plot_contours(
-        data, samples, n_events = config.n_events,
+        data, { "Output": samples, "Training": data[:config.n_events] },
     )
 
     figure.show()

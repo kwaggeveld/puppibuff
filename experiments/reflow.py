@@ -38,10 +38,7 @@ def main():
     print(f"SW1 reflow = { sliced_wasserstein(data, samples) :.4g}   "
           f"BDTs = { reflow.bdt_grid[:-1].size }")
 
-    figure = plot_histograms(
-        data, samples, overlay = teacher,
-        labels = { "Output": "Reflow", "Training": "Flow matching" },
-    )
+    figure = plot_histograms(data, { "Reflow": samples, "Flow matching": teacher })
 
     figure.savefig(output_dir(__file__) / f"reflow_s{ N_STEPS }.pdf")
 
