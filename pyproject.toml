@@ -41,6 +41,7 @@ Repository = "https://github.com/kwaggeveld/puppibuff"
 
 [dependency-groups]
 dev = [
+    "ipykernel>=7.4.0",
     "mypy>=2.3.1",
 ]
 
