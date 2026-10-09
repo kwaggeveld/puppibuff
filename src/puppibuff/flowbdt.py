@@ -6,7 +6,7 @@ from .utils import initial_noise, t_to_step
 
 import numpy as np
 from xgboost import XGBRegressor, XGBModel
-from joblib import Parallel, delayed, dump, load
+from joblib import dump, load
 from tqdm import tqdm
 
 from numpy.typing import NDArray
@@ -56,14 +56,12 @@ class FlowBDT():
         x: Paths,
         y: NDArray,
         sample_weights: NDArray | None = None, # (N,), one weight per event
-        n_threads: int = 1,             # Caps at len(targets)
     ) -> None:
         # X: sequence of n_steps arrays, each (N, n_channels); y: (N, n_channels)
         self.n_steps    = x.n_steps
         self.n_channels = y.shape[1]
 
-        targets   = self._prepare_targets(y)
-        n_threads = min(n_threads, len(targets))
+        targets = self._prepare_targets(y)
 
         ensemble = []
         with tqdm(total = self.n_steps * len(targets),
@@ -71,13 +69,8 @@ class FlowBDT():
             for step in range(self.n_steps):
                 xt = x[step]            # Shared by every group of this step
 
-                jobs = (
-                    delayed(self._fit_one)(xt, target, sample_weights)
-                    for target in targets
-                )
-
-                for model in Parallel(n_jobs = n_threads, return_as = "generator")(jobs):
-                    ensemble.append(model)
+                for target in targets:
+                    ensemble.append(self._fit_one(xt, target, sample_weights))
                     progress_bar.update()
 
         self.bdt_grid = (np.array(ensemble, dtype = object)
