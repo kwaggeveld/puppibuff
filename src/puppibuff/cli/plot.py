@@ -1,81 +1,46 @@
+from __future__ import annotations
+
 from ..archive import is_archive, load_samples
-from .common import (apply_style, COUNT, EXISTING_FILE, figure_path,
-                     N_SAMPLES_DEFAULT, timed)
+from .common import (apply_style, default_out, EXISTING_FILE, given,
+                     n_samples_option, OUTPUT_DIR, seed_option, timed)
 from .sample import sample_model
 
+import click
+from pathlib import Path
 from zipfile import is_zipfile
 
-import click
-
-from typing import Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..utils import Source
 
 #-----------------------------------------------------------------------------
 
-def plot_options(command):
-    """The arguments every plotter takes. Applied in reverse so `--help` lists
-    them in the order written here.
+@click.command()
+@click.argument("kind", type = click.Choice(( "histograms", "distributions", "contours" )),
+                metavar = "KIND")
+@click.argument("source", type = EXISTING_FILE)
+@n_samples_option
+@seed_option
+@click.option("--train-overlay", type = bool,
+              default = True, show_default = True,
+              help = "Include training dataset overlay, unless SOURCE holds two samples.")
+@click.option("-o", "--output", type = click.Path(file_okay = False),
+              help = f"Output directory  [default: ./{ OUTPUT_DIR }/KIND/]")
+@click.option("--show", is_flag = True,
+              help = "Show the figure instead of writing, ignoring -o.")
+def plot(kind: str, source: str, n_samples: int, seed: int | None,
+         train_overlay: bool, output: str | None, show: bool) -> None:
+    """Draw a model or samples by `puppibuff sample` or `puppibuff hls sample`
+    against its target dataset, as binned `histograms`, KDE `distributions` or
+    2D KDE `contours`.
+
+    SOURCE is either a model archive, which is sampled first with `-n` and
+    `-s`, or an `.npz` of premade samples.
     """
-    options = [
-        click.argument("source", type = EXISTING_FILE),
-        click.option("-n", "--n-samples", type = COUNT,
-                     default = N_SAMPLES_DEFAULT, show_default = True,
-                     help = "Number of samples, if SOURCE is a model."),
-        click.option("-s", "--seed", type = int,
-                     help = "Sampler seed, if SOURCE is a model."),
-        click.option("--train-overlay", type = bool, 
-                     default = True, show_default = True,
-                     help = "Include training dataset overlay, unless SOURCE holds two samples."),
-        click.option("-o", "--output", type = click.Path(file_okay = False),
-                     help = f"Output directory  [default: ./output/{ command.__name__ }/]"),
-        click.option("--show", is_flag = True,
-                     help = "Show the figure instead of writing, ignoring -o."),
-    ]
-
-    for option in reversed(options):
-        command = option(command)
-
-    return command
-
-
-def refuse_options(*names: str) -> None:
-    """Refuse options `*names` if they are set."""
-    context = click.get_current_context()
-
-    given = [ f"--{ name.replace('_', '-') }" for name in names
-              if context.get_parameter_source(name)
-                 is not click.ParameterSource.DEFAULT ]
-
-    if given:
-        raise click.BadParameter(
-            f"Pass `{ '`, `'.join(given) }` only with a model archive. "
-            f"`{ context.params['source'] }` already holds samples."
-        )
-
-
-def draw(
-    plotter: str, 
-    source: str, 
-    n_samples: int, 
-    seed: int | None,
-    train_overlay: bool, 
-    output: str | None,
-    show: bool
-) -> None:
-    """Draw `source`'s samples against the target dataset behind them, sampling them
-    first when `source` is a model rather than a sample file.
-    """
-    from ..analyses import plot_contours, plot_distributions, plot_histograms
+    from .. import analyses
 
     apply_style()
-
-    plotters: dict[str, Callable] = {   # The plotter each command uses
-        "histograms":    plot_histograms,
-        "distributions": plot_distributions,
-        "contours":      plot_contours,
-    }
 
     if not is_zipfile(source):
         raise click.BadParameter(
@@ -88,7 +53,11 @@ def draw(
         config, codec, raw = sample_model(source, n_samples, seed)
         series = { "Output": codec.decode(raw) }
     else:
-        refuse_options("n_samples", "seed")
+        if given("n_samples", "seed"):
+            raise click.BadParameter(
+                f"Pass `-n` and `-s` only with a model archive. "
+                f"`{ source }` already holds samples."
+            )
 
         try:
             config, samples = load_samples(source)
@@ -97,7 +66,7 @@ def draw(
 
         if not all(isinstance(sample, dict) for sample in samples.values()):
             raise click.BadParameter(
-                "These samples are encoded. Draw again without `--encoded` to plot."
+                "These samples are encoded. Sample again without `--encoded` to plot."
             )
 
         series = { label: sample for label, sample in samples.items() if isinstance(sample, dict) }
@@ -107,7 +76,7 @@ def draw(
     if train_overlay and len(series) == 1:
         series["Training"] = data[:config.n_events]
 
-    figure = timed(f"Drawing { plotter }", plotters[plotter], data, series)
+    figure = timed(f"Drawing { kind }", getattr(analyses, f"plot_{ kind }"), data, series)
 
     if show:
         import matplotlib.pyplot as plt
@@ -115,38 +84,11 @@ def draw(
         plt.show()
         return
 
-    path = figure_path(plotter, source, output)
+    path = default_out(kind, source, ".pdf")
+    if output is not None:
+        path = Path(output) / path.name
+
+    path.parent.mkdir(parents = True, exist_ok = True)
     figure.savefig(path, format = "pdf")
 
     click.echo(f"Wrote { path }.")
-
-
-@click.group()
-def plot() -> None:
-    """Draw a model or samples by `puppibuff sample` or `puppibuff hls sample`
-    against its target dataset.
-
-    SOURCE is either a model archive, which is sampled first, or an `.npz` of
-    samples, which get drawn immediately.
-    """
-
-
-@plot.command()
-@plot_options
-def histograms(**kwargs) -> None:
-    """Binned marginal distributions with ratio panels."""
-    draw("histograms", **kwargs)
-
-
-@plot.command()
-@plot_options
-def distributions(**kwargs) -> None:
-    """1D KDE marginal distributions."""
-    draw("distributions", **kwargs)
-
-
-@plot.command()
-@plot_options
-def contours(**kwargs) -> None:
-    """Contours of 2D KDE marginal distributions."""
-    draw("contours", **kwargs)

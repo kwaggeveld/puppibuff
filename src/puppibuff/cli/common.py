@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ..archive import is_archive, load_model
+
 import sys
 import time
 from pathlib import Path
@@ -9,7 +11,9 @@ import click
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from ..codecs import Codec
     from ..configs import Config
+    from ..flowbdt import FlowBDT
 
 #-----------------------------------------------------------------------------
 
@@ -68,12 +72,41 @@ class Count(click.ParamType):
 COUNT = Count()
 
 
-def figure_path(kind: str, source: str, output: str | None) -> Path:
-    """`output`, or `./output/<kind>/`, with `source`'s stem as the file name."""
-    outdir = Path(output) if output is not None else Path(OUTPUT_DIR) / kind
-    outdir.mkdir(parents = True, exist_ok = True)
+# --- Shared options ---
 
-    return outdir / f"{ Path(source).stem }.pdf"
+n_samples_option = click.option("-n", "--n-samples", type = COUNT,
+                                default = N_SAMPLES_DEFAULT, show_default = True,
+                                help = "Number of samples.")
+
+seed_option = click.option("-s", "--seed", type = int, 
+                           help = "Seed for the starting noise.")
+
+encoded_option = click.option("--encoded", is_flag = True,
+                              help = "Store the samples encoded instead of decoded.")
+
+
+def given(*names: str) -> list[str]:
+    """The options among `names` that were set on the CLI."""
+    context = click.get_current_context()
+
+    return [ name for name in names
+             if context.get_parameter_source(name)
+                is not click.ParameterSource.DEFAULT ]
+
+
+def default_out(kind: str, source: str, suffix: str) -> Path:
+    """`./output/<kind>/`, with `source`'s stem and `suffix` as the file name."""
+    return Path(OUTPUT_DIR) / kind / f"{ Path(source).stem }{ suffix }"
+
+
+def load_archive(path: str) -> tuple[Config, Codec, FlowBDT]:
+    """Load the model archive at `path`."""
+    if not is_archive(path):
+        raise click.BadParameter(
+            f"{ path } is not a model archive. Write one with `puppibuff train`."
+        )
+
+    return timed("Loading model", load_model, path)
 
 
 def config_names() -> list[str]:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from ..archive import save_model
-from .common import CONFIG_DEFAULT, Count, resolve_config
+from .common import CONFIG_DEFAULT, Count, given, resolve_config
 
 import ast
 import click
@@ -74,15 +74,8 @@ def tree_params(passthrough: tuple[str, ...]) -> dict:
 
 def overrides(config: Config, fields: dict, tree_config: dict) -> dict:
     """The fields the command line set, to override into `config`."""
-    context = click.get_current_context()
-
-    given = { name: value for name, value in fields.items()
-              if context.get_parameter_source(name) 
-                is not click.ParameterSource.DEFAULT }
-
-    given["tree_config"] = config.tree_config | tree_config
-
-    return given
+    return ({ name: fields[name] for name in given(*fields) }
+            | { "tree_config": config.tree_config | tree_config })
 
 
 @click.command(cls = Passthrough,

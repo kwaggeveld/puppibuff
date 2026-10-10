@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from ..archive import load_model, save_samples
+from ..archive import save_samples
 from ..utils import initial_noise
-from .common import COUNT, EXISTING_FILE, N_SAMPLES_DEFAULT, OUTPUT_DIR, timed
+from .common import (default_out, encoded_option, EXISTING_FILE, load_archive,
+                     n_samples_option, OUTPUT_DIR, timed)
 
 from pathlib import Path
 
@@ -49,17 +50,17 @@ def hls() -> None:
 @hls.command()
 @click.argument("model", type = EXISTING_FILE)
 @click.option("-o", "--output", type = click.Path(file_okay = False),
-              help = "HLS project directory  [default: ./output/hls/<model>/]")
+              help = f"HLS project directory  [default: ./{ OUTPUT_DIR }/hls/<model>/]")
 @click.option("--per-bdt", is_flag = True,
               help = "Write one conifer project per BDT.")
 def write(model: str, output: str | None, per_bdt: bool) -> None:
     """Write MODEL's HLS firmware to DIRECTORY."""
     from ..hls import FlowHLS
 
-    _, codec, flowbdt = load_model(model)
+    _, codec, flowbdt = load_archive(model)
 
     if output is None:                  # Beside the figures, one dir per model
-        output = str(Path(OUTPUT_DIR) / "hls" / Path(model).stem)
+        output = str(default_out("hls", model, ""))
 
     flowhls = FlowHLS.convert(flowbdt, output_dir = output, merged = not per_bdt)
     flowhls.write(codec)
@@ -94,11 +95,8 @@ def build(workdir: str) -> None:
 @hls.command()
 @click.argument("workdir", type = click.Path(file_okay = False))
 @click.argument("model", type = EXISTING_FILE)
-@click.option("-n", "--n-samples", type = COUNT, default = N_SAMPLES_DEFAULT,
-              show_default = True,
-              help = "Events to generate with each sampler from shared noise.")
-@click.option("--encoded", is_flag = True,
-              help = "Save the codec's input instead of its output")
+@n_samples_option
+@encoded_option
 def sample(workdir: str, model: str, n_samples: int, encoded: bool) -> None:
     """Sample MODEL through both HLS and XGBoost from shared noise.
 
@@ -108,7 +106,7 @@ def sample(workdir: str, model: str, n_samples: int, encoded: bool) -> None:
     """
     from ..hls import constants
 
-    config, codec, flowbdt = load_model(model)
+    config, codec, flowbdt = load_archive(model)
 
     flowhls = build_hls(flowbdt, codec, workdir)
 
