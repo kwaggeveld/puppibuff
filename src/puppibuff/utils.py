@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import re
+import warnings
 from importlib import import_module, resources
 from operator import attrgetter
 from pathlib import Path
@@ -79,6 +81,10 @@ def initial_noise(
 
 def class_path(cls: type) -> str:
     """`cls` as an importable `module:QualName` tag for a JSON export."""
+    if cls.__module__ == "__main__":
+        warnings.warn(f"{ cls.__name__ } is defined in __main__, so it loads "
+                      f"back only in a script that defines it.")
+
     return f"{ cls.__module__ }:{ cls.__qualname__ }"
 
 
@@ -87,6 +93,36 @@ def import_class(path: str) -> type:
     module, _, name = path.partition(":")
 
     return attrgetter(name)(import_module(module))
+
+
+def _plain(value: object) -> object:
+    """`json.dumps` fallback, converting numpy objects to lists and numbers."""
+    if isinstance(value, np.ndarray | np.generic):
+        return value.tolist()
+
+    raise TypeError(f"{ type(value).__name__ } is not JSON serialisable")
+
+
+def to_state(obj: object) -> dict:
+    """Return `obj`'s class tag and every attribute as plain JSON."""
+    state = { "cls": class_path(type(obj)) }
+
+    for name, value in vars(obj).items():
+        try:
+            state[name] = json.loads(json.dumps(value, default = _plain))
+        except TypeError as error:
+            raise TypeError(f"Cannot save { type(obj).__name__ }.{ name }: { error }.") from None
+
+    return state
+
+
+def from_state(state: dict) -> object:
+    """Rebuild the object from the dict constructed by `to_state`."""
+    state = dict(state)
+    obj: object = object.__new__(import_class(state.pop("cls")))
+    obj.__dict__.update(state)
+
+    return obj
 
 
 def to_zip(path: str, config: Config, codec: Codec, model: FlowBDT) -> None:

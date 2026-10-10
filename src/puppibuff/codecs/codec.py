@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from ..datasets import Dataset
-from ..utils import class_path, import_class
+from ..utils import from_state, to_state
 
 from abc import ABC, abstractmethod
 import json
@@ -16,7 +16,6 @@ class Codec(ABC):
     space `FlowBDT` is trained in and samples from.
     """
 
-    s_EXPORT_KEYS: list[str]            # Fitted attributes `to_json` writes
     s_DECODED: list[str]                # The channels `decode` returns
 
     s_DECODE_TOP = "decode"             # `decode_cpp`'s HLS top function
@@ -94,27 +93,17 @@ class Codec(ABC):
 # --- Export/import ---
 
     def to_json(self, path: Path | str) -> None:
-        """Write the Codec's class tag and `s_EXPORT_KEYS` to `path` to save the
-        object to JSON.
-
-       `from_json` uses the tag to reconstruct, so a Codec defined outside an
-        importable module cannot be loaded back.
-        """
-        if type(self).__module__ == "__main__":
-            print(f"{ type(self).__name__ } is defined in __main__, so this "
-                  f"archive can only be loaded in a session that defines it.")
-
+        """Write the Codec's class tag and every attribute to `path` as JSON."""
         with open(path, "w") as file:
-            json.dump({ "codec_cls": class_path(type(self)) }
-                      | { key: getattr(self, key) for key in self.s_EXPORT_KEYS }, file)
+            json.dump(to_state(self), file)
 
     @classmethod
     def from_json(cls, path: Path | str) -> Codec:
-        """Construct the Codec specified by the file's `codec_cls` tag."""
-        with open(path) as f:
-            state = json.load(f)
+        """Construct the Codec specified by the file's `cls` tag."""
+        with open(path) as file:
+            codec = from_state(json.load(file))
 
-        obj = import_class(state.pop("codec_cls"))()
-        obj.__dict__.update(state)                                            # pyright: ignore[reportAttributeAccessIssue]
+        if not isinstance(codec, Codec):
+            raise TypeError(f"{ path } describes a { type(codec).__name__ }, not a Codec.")
 
-        return obj
+        return codec

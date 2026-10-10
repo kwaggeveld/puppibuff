@@ -14,8 +14,6 @@ class MultiplicityCodec(JetCodec):
     is encoded to a single scalar channel instead of one `real` flag per slot.
     """
 
-    s_EXPORT_KEYS = JetCodec.s_EXPORT_KEYS + [ "multiplicity", "mult_mean", "mult_std" ]
-
     s_REQUIRED = JetCodec.s_REQUIRED + [ "real" ]
     s_DECODED  = JetCodec.s_DECODED  + [ "real" ]
 

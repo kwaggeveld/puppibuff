@@ -18,11 +18,6 @@ class JetCodec(Codec):
     phi -> (sin_phi, cos_phi), or normalise if `s1phi = False`
     """
 
-    s_EXPORT_KEYS = [ channel + "_" + attr
-                      for channel in ( "pt", "eta", "phi" )
-                      for attr    in ( "mean", "std", "min", "max" )] \
-                    + [ "s1phi", "n_features" ]
-
     s_REQUIRED = [ "pt", "eta", "phi" ] # Expected by `fit` and `encode` 
     s_DECODED  = [ "pt", "eta", "phi" ] # Returned by `decode`, for HLS
 
