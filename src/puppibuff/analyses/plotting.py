@@ -7,8 +7,11 @@ from itertools import combinations
 import logging
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import to_rgba
 from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 from matplotlib.ticker import MaxNLocator
+from matplotlib.transforms import Bbox
 from scipy.stats import gaussian_kde
 
 from typing import Callable
@@ -26,16 +29,12 @@ logging.getLogger("fontTools.ttLib.tables._h_e_a_d").setLevel(logging.ERROR)
 
 DOC_WIDTH = 0.9 * 6.3                   # Typical article `\the\textwidth` / 72.28
 
-                                        # The target each sample
-STYLES: list[tuple[dict, dict]] = [     # (marginal kwargs, contour kwargs)
-    (dict(color = "#9E9E9E", edgecolor = "#474747", alpha = .35, linewidth = .5, zorder = 1),
-     dict(colors = "#474747", linestyles = "solid",  linewidths = .8, zorder = 1)),
-    (dict(color = "#0C5DA5", linewidth = 1.0, zorder = 3),
-     dict(colors = "#0C5DA5", linestyles = "dashed", linewidths = 1.1, zorder = 5)),
-    (dict(color = "#FF9500", linewidth = .8, zorder = 2),
-     dict(colors = "#FF9500", linestyles = "dotted", linewidths = .9, zorder = 3)),
+STYLES: list[dict] = [                  # The target, then each sample
+    dict(color = "#9E9E9E", edgecolor = "#474747", alpha = .35, linewidth = .5, zorder = 1),
+    dict(color = "#0C5DA5", linewidth = 1.0, zorder = 3),
+    dict(color = "#FF9500", linewidth = .8, zorder = 2),
 ]
-TARGET = STYLES[0][0]
+TARGET = STYLES[0]
 
 LABELS = {                              # Channel key to label
     "pt":           r"$p_\mathrm{T}$ / GeV",
@@ -107,8 +106,8 @@ def _ratio_panel(rax: Axes, grid: NDArray, curves: list[NDArray], step: bool,
 
     ratios = [ _ratio(first, ref, floor) for ref in (target, *others) ]
 
-    for ratio, (style, _) in zip(ratios, STYLES[1:]):
-        draw(grid, ratio, color = style["color"], linewidth = style["linewidth"], zorder = style["zorder"])
+    for ratio, style in zip(ratios, STYLES[1:]):
+        draw(grid, ratio, **style)
 
     values = np.concatenate([ ratio[np.isfinite(ratio)] for ratio in ratios ])
     radius = (np.clip(np.percentile(np.abs(values - 1.), 99), 0.1, RATIO_MAX - 1.0)
@@ -129,7 +128,7 @@ def _hist_panel(ax: Axes, rax: Axes | None, name: str, values: list[NDArray],
 
     counts = [ np.asarray(ax.hist(series, edges, density = True, label = label,     # type: ignore[arg-type]
                                   histtype = "stepfilled" if index == 0 else "step",
-                                  **STYLES[index][0])[0])
+                                  **STYLES[index])[0])
                for index, (series, label) in enumerate(zip(values, labels)) ]
 
     if rax is not None:
@@ -148,7 +147,7 @@ def _kde_panel(ax: Axes, rax: Axes | None, name: str, values: list[NDArray],
 
     ax.fill_between(grid, densities[0], label = labels[0], **TARGET)
     for index in range(1, len(densities)):
-        ax.plot(grid, densities[index], label = labels[index], **STYLES[index][0])
+        ax.plot(grid, densities[index], label = labels[index], **STYLES[index])
 
     if rax is not None:                 # KDE tails are long and ~~0, cut below 1e-3
         _ratio_panel(rax, grid, densities, step = False, floor = 1e-3)
@@ -283,30 +282,37 @@ def plot_contours(
         clouds = [ np.stack([ np.log1p(columns[name]) if name in LOG_LABELS else columns[name]
                               for name in pair ])
                    for columns in series ]
-                                        # Grid spans the target + first sample
-        spanned = np.concatenate(clouds[:2], axis = 1)
-        grid    = np.stack(np.meshgrid(*[ np.linspace(low, high, points)
-                                          for low, high in np.percentile(spanned, SPAN, axis = 1).T ],
-                                       indexing = "ij"))
+                                        # Grid spans the target + first sample,
+        spanned   = np.concatenate(clouds[:2], axis = 1)
+        low, high = np.percentile(spanned, SPAN, axis = 1)
+        pad       = (high - low) * XPAD # padded so the contours close
+        grid      = np.stack(np.meshgrid(*np.linspace(low - pad, high + pad, points, axis = 1),
+                                         indexing = "ij"))
 
         for index, cloud in enumerate(clouds):
             density = _kde(cloud)(grid.reshape(2, -1)).reshape(grid.shape[1:])
             levels  = _mass_levels(density)
-            style   = STYLES[index][1]
+            style   = STYLES[index]
 
-            if index == 0:
-                ax.contourf(*grid, density, levels = levels, colors = style["colors"],
-                            alpha = .25, zorder = style["zorder"], extend = "max")
+            if index == 0:              # Target shaded darker towards its core
+                shades = [ to_rgba(style["edgecolor"], alpha) for alpha in np.linspace(.15, .6, len(levels)) ]
+                ax.contourf(*grid, density, levels = levels, colors = shades,
+                            extend = "max", zorder = style["zorder"])
+            else:
+                ax.contour(*grid, density, levels = levels, colors = style["color"],
+                           linewidths = style["linewidth"], zorder = style["zorder"])
 
-            ax.contour(*grid, density, levels = levels, **(style | { "zorder": style["zorder"] + 1 }))
+                                        # Fit the panel to the drawn contours
+        bounds = Bbox.union([ drawn.get_datalim(ax.transData) for drawn in ax.collections ])
+        bounds = bounds.padded(bounds.width * XPAD, bounds.height * XPAD)
+        ax.set(xlim = bounds.intervalx, ylim = bounds.intervaly)
 
         ax.set_xlabel(LOG_LABELS.get(pair[0]) or LABELS.get(pair[0], pair[0]))
         ax.set_ylabel(LOG_LABELS.get(pair[1]) or LABELS.get(pair[1], pair[1]))
 
                                         # A contour has no legend handle
-    proxies = [ Line2D([], [], color = style["colors"], linestyle = style["linestyles"],
-                       linewidth = style["linewidths"])
-                for _, style in STYLES[:len(series)] ]
+    proxies = [ Patch(color = TARGET["edgecolor"], alpha = .4),
+                *[ Line2D([], [], **style) for style in STYLES[1:len(series)] ] ]
 
     fig.legend(proxies, labels, loc = "outside upper right", ncols = len(series))
 
