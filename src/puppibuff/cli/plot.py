@@ -1,5 +1,6 @@
+from ..archive import is_archive
 from .common import (apply_style, COUNT, EXISTING_FILE, figure_path,
-                     is_archive, N_SAMPLES_DEFAULT, timed)
+                     N_SAMPLES_DEFAULT, timed)
 from .sample import read_config, read_samples, sample_model
 
 from zipfile import is_zipfile

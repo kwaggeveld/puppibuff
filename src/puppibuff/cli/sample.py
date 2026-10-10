@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from .. import from_zip
-from ..utils import CONFIG_FILE
-from .common import (COUNT, EXISTING_FILE, is_archive, N_SAMPLES_DEFAULT,
-                     OUTPUT_DIR, timed)
+from ..archive import CONFIG_FILE, is_archive, load_model
+from .common import COUNT, EXISTING_FILE, N_SAMPLES_DEFAULT, OUTPUT_DIR, timed
 
 import json
 from pathlib import Path
@@ -78,12 +76,12 @@ def sample_path(model: str, output: str | None) -> Path:
 def sample_model(model: str, n_samples: int,
                  seed: int | None) -> tuple[Config, Codec, NDArray]:
     """Load `model` and integrate its field from noise."""
-    if not is_archive(model):           # `from_zip` would fail on a temp path
+    if not is_archive(model):
         raise click.BadParameter(
             f"{ model } is no model archive. Write one with `puppibuff train`."
         )
 
-    config, codec, flowbdt = timed("Loading model", from_zip, model)
+    config, codec, flowbdt = timed("Loading model", load_model, model)
 
                                         # Overrides the config's seed
     rng = None if seed is None else np.random.default_rng(seed)

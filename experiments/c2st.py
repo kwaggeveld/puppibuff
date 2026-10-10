@@ -1,4 +1,4 @@
-from puppibuff import from_zip
+from puppibuff import load_model
 from puppibuff.analyses import classifier_two_sample_test, joint_mse
 
 import sys
@@ -23,7 +23,7 @@ def main():
     if len(sys.argv) < 2:
         sys.exit(f"Usage: {sys.argv[0]} <model>")
 
-    config, codec, model = from_zip(sys.argv[1])
+    config, codec, model = load_model(sys.argv[1])
 
     data = config.dataset()
                                         # Try to use events that have not been 

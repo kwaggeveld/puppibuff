@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from puppibuff import from_zip
+from puppibuff import load_model
 from puppibuff.analyses import plot_histograms
 from puppibuff.cli.common import timed
 from puppibuff.cli.hls import build_hls
@@ -25,7 +25,7 @@ def main():                             # HLS project directory and the trained
 
     workdir = sys.argv[1]
 
-    config, codec, model = from_zip(sys.argv[2])
+    config, codec, model = load_model(sys.argv[2])
     data = config.dataset()
 
     hls = build_hls(model, codec, workdir)

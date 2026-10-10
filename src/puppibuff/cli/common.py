@@ -3,7 +3,6 @@ from __future__ import annotations
 import sys
 import time
 from pathlib import Path
-from zipfile import is_zipfile, ZipFile
 
 import click
 
@@ -75,17 +74,6 @@ def figure_path(kind: str, source: str, output: str | None) -> Path:
     outdir.mkdir(parents = True, exist_ok = True)
 
     return outdir / f"{ Path(source).stem }.pdf"
-
-
-def is_archive(path: str) -> bool:
-    """Whether `path` is a model archive or a `.npz` containing samples."""
-    from ..utils import MODEL_FILE
-
-    if not is_zipfile(path):           
-        return False
-
-    with ZipFile(path) as archive:      # `.npz` is a zip too
-        return MODEL_FILE in archive.namelist()
 
 
 def config_names() -> list[str]:

@@ -101,7 +101,7 @@ class FlowHLS:
                     f"No codec in { self.output_dir }. Call write(codec) first."
                 )
 
-            self._codec = Codec.from_json(saved)
+            self._codec = Codec.load(saved)
 
         return self._codec
 
@@ -148,7 +148,7 @@ class FlowHLS:
         self._codec = codec
 
         self.output_dir.mkdir(parents = True, exist_ok = True)
-        codec.to_json(self.output_dir / c.CODEC_FILE)
+        codec.save(self.output_dir / c.CODEC_FILE)
 
         if self.merged:
             self._write_flowhls()

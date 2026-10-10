@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .. import from_zip
+from ..archive import load_model
 from ..utils import initial_noise
 from .common import (apply_style, COUNT, EXISTING_FILE, figure_path,
                      N_SAMPLES_DEFAULT, OUTPUT_DIR, timed)
@@ -107,7 +107,7 @@ def write(model: str, output: str | None, per_bdt: bool) -> None:
     """Write MODEL's HLS firmware to DIRECTORY."""
     from ..hls import FlowHLS
 
-    _, codec, flowbdt = from_zip(model)
+    _, codec, flowbdt = load_model(model)
 
     if output is None:                  # Beside the figures, one dir per model
         output = str(Path(OUTPUT_DIR) / "hls" / Path(model).stem)
@@ -159,7 +159,7 @@ def sample(workdir: str, model: str, n_samples: int, encoded: bool) -> None:
     """
     from ..hls import constants
 
-    _, codec, flowbdt = from_zip(model)
+    _, codec, flowbdt = load_model(model)
 
     flowhls = build_hls(flowbdt, codec, workdir)
 
@@ -194,7 +194,7 @@ def plot(samples: str, model: str, output: str | None) -> None:
 
     arrays = np.load(samples)
 
-    config, codec, _ = timed("Loading model", from_zip, model)
+    config, codec, _ = timed("Loading model", load_model, model)
 
     sampled = read_samples(arrays, codec)
 

@@ -6,7 +6,7 @@ from .utils import initial_noise, t_to_step
 
 import numpy as np
 from xgboost import XGBRegressor, XGBModel
-from joblib import dump, load
+import joblib
 from tqdm import tqdm
 
 from numpy.typing import NDArray
@@ -21,7 +21,7 @@ class FlowBDT():
                                               # each BDT predicts
         rng: np.random.Generator | None = None, # Draws `sample`'s noise
     ) -> None:
-        self.config = dict(config or {}) # Need empty dict option for .from_json()
+        self.config = dict(config or {}) # Need empty dict option for .load()
         self.group_sizes = list(group_sizes or []) # Empty => one BDT per channel
         self.rng = rng
 
@@ -103,19 +103,19 @@ class FlowBDT():
 
 # --- Export/import ---
 
-    def to_disk(self, path: str) -> None:
+    def save(self, path: str) -> None:
         """Persist the whole state except for `rng`, and export boosters to 
         binary JSON.
         """
         state = { key: value for key, value in self.__dict__.items() if key != "rng" }
-        dump(state
-             | { "bdt_grid": [ bdt.get_booster().save_raw("ubj")
-                               for bdt in self.bdt_grid.ravel() ]}, path)
+        joblib.dump(state
+                    | { "bdt_grid": [ bdt.get_booster().save_raw("ubj")
+                                      for bdt in self.bdt_grid.ravel() ]}, path)
 
     @classmethod
-    def from_disk(cls, path: str) -> FlowBDT:
+    def load(cls, path: str) -> FlowBDT:
         obj = cls()
-        obj.__dict__.update(load(path))
+        obj.__dict__.update(joblib.load(path))
 
         grid = []
         for raw in obj.bdt_grid:        # Seeded from self.config: a raw booster

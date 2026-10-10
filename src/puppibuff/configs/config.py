@@ -86,7 +86,7 @@ class Config(ABC):
         """Export as a dict every stored field, together with the config class name."""
         return { "cls": class_path(type(self)) } | asdict(self)
 
-    def to_json(self, path: str) -> None:
+    def save(self, path: str) -> None:
         with open(path, "w") as file:
             json.dump(self.to_dict(), file)
 
@@ -98,7 +98,7 @@ class Config(ABC):
         return import_class(fields.pop("cls"))(**fields)
 
     @classmethod
-    def from_json(cls, path: str) -> Config:
+    def load(cls, path: str) -> Config:
         """Construct whichever Config the file's `cls` tag names."""
         with open(path) as file:
             return cls.from_dict(json.load(file))

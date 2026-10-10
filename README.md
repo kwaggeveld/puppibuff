@@ -66,7 +66,7 @@ puppibuff train models/my_run
 puppibuff plot histograms models/my_run --show
 ```
 
-`train` writes one archive holding the config, codec and trained model together, which `puppibuff.from_zip` loads. `plot` methods display samples from such a model:
+`train` writes one archive holding the config, codec and trained model together, which `puppibuff.load_model` loads. `plot` methods display samples from such a model:
 
 ```bash
 puppibuff plot histograms models/my_run -n 1e6 -s 0
@@ -92,7 +92,7 @@ See `puppibuff hls --help` for details.
 The CLI trains on each `Config`'s defaults. Configure them in Python:
 
 ```python
-from puppibuff import to_zip
+from puppibuff import save_model
 from puppibuff.analyses import plot_histograms
 from puppibuff.configs import FlatPuppiJetConfig
 
@@ -105,7 +105,7 @@ model.fit(x, y)
 samples = codec.decode(model.sample(1_000_000))
 figure  = plot_histograms(data, { "Output": samples, "Training": data[:config.n_events] })
 
-to_zip("models/my_run", config, codec, model)
+save_model("models/my_run", config, codec, model)
 ```
 
 To train on your own data, subclass `Dataset`, load your set by overriding `_load`, and let `s_CHANNELS` name them. Pair that with a `Codec` in your own `Config`.

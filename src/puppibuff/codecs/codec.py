@@ -92,13 +92,13 @@ class Codec(ABC):
 
 # --- Export/import ---
 
-    def to_json(self, path: Path | str) -> None:
+    def save(self, path: Path | str) -> None:
         """Write the Codec's class tag and every attribute to `path` as JSON."""
         with open(path, "w") as file:
             json.dump(to_state(self), file)
 
     @classmethod
-    def from_json(cls, path: Path | str) -> Codec:
+    def load(cls, path: Path | str) -> Codec:
         """Construct the Codec specified by the file's `cls` tag."""
         with open(path) as file:
             codec = from_state(json.load(file))

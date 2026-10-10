@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .. import to_zip
+from ..archive import save_model
 from .common import CONFIG_DEFAULT, Count, resolve_config
 
 import ast
@@ -106,7 +106,7 @@ def overrides(config: Config, fields: dict, tree_config: dict) -> dict:
 def train(outfile: str, config_spec: str, config_file: str | None,
           passthrough: tuple[str, ...], **fields) -> None:
     """Train a FlowBDT model and export it to OUTFILE, which can be read by 
-    `puppibuff.from_zip` or the CLI. 
+    `puppibuff.load_model` or the CLI. 
     
     Trains --config, or --config-file with every other option applied on top.
     Pass any `--key=value` after OUTFILE as XGBoost parameter for the tree
@@ -115,7 +115,7 @@ def train(outfile: str, config_spec: str, config_file: str | None,
     from ..configs import Config
     from dataclasses import replace
 
-    config = (Config.from_json(config_file) if config_file is not None
+    config = (Config.load(config_file) if config_file is not None
               else resolve_config(config_spec)())
 
     if outfile.startswith("-"):         # Took a passthrough option
@@ -131,6 +131,6 @@ def train(outfile: str, config_spec: str, config_file: str | None,
 
     model.fit(x, y)
 
-    to_zip(outfile, config, codec, model)
+    save_model(outfile, config, codec, model)
 
     click.echo(f"Wrote config, codec and model to { outfile }.")

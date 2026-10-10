@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from .common import config_names, is_archive, resolve_config
+from ..archive import CONFIG_FILE, is_archive
+from .common import config_names, resolve_config
 from .sample import config_json
 
 import json
@@ -17,11 +18,10 @@ def file_config(path: str) -> dict:
     config JSON.
     """
     from ..configs import Config
-    from ..utils import CONFIG_FILE
 
     if not is_zipfile(path):            # Loose config JSON
         try:
-            return Config.from_json(path).to_dict()
+            return Config.load(path).to_dict()
         except json.JSONDecodeError:
             raise click.BadParameter(f"{ path } is no config JSON.")
 
