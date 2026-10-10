@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-from ..archive import CONFIG_FILE, is_archive, load_model
+from ..archive import is_archive, load_model, save_samples
 from .common import COUNT, EXISTING_FILE, N_SAMPLES_DEFAULT, OUTPUT_DIR, timed
 
-import json
 from pathlib import Path
 
 import click
 import numpy as np
-from numpy.lib.npyio import NpzFile
 
 from numpy.typing import NDArray
 from typing import TYPE_CHECKING
@@ -18,49 +16,6 @@ if TYPE_CHECKING:
     from ..configs import Config
 
 #-----------------------------------------------------------------------------
-
-ENCODED_MEMBER = "encoded"              # Pre-decode output, a single array
-
-
-def sample_members(config: Config,
-                   samples: dict[str, NDArray]) -> dict[str, NDArray]:
-    """Build the to-be-saved dict of one output array per channel and config dict."""
-    channels = { channel: values.astype(np.float32)
-                 for channel, values in samples.items() }
-
-    return { CONFIG_FILE: np.array(json.dumps(config.to_dict())) } | channels
-
-
-def config_json(zip: NpzFile) -> dict:
-    """Return the config saved in `zip`."""
-    if CONFIG_FILE not in zip.files:
-        raise click.BadParameter(
-            f"This file holds no { CONFIG_FILE } member, so the source model "
-             "and target dataset are lost. Generate new samples with "
-             "`puppibuff sample`."
-        )
-
-    return json.loads(zip[CONFIG_FILE].item())
-
-
-def read_config(zip: NpzFile) -> Config:
-    """Reconstruct and return the Config saved in `zip`."""
-    from ..configs import Config
-
-    return Config.from_dict(config_json(zip))
-
-
-def read_samples(zip: NpzFile) -> dict[str, NDArray]:
-    """Check whether samples are encoded, and if not, return all but the config."""
-    if ENCODED_MEMBER in zip.files:
-        raise click.BadParameter(
-            "These samples are encoded and the required Codec was not stored. "
-            "Draw again without `--encoded` to plot."
-        )
-
-    return { name: zip[name] for name in zip.files
-             if name != CONFIG_FILE }
-
 
 def sample_path(model: str, output: str | None) -> Path:
     """Construct the path to the output file. `output`, if provided, else 
@@ -111,9 +66,7 @@ def sample(model: str, n_samples: int, seed: int | None, encoded: bool,
     """
     config, codec, raw = sample_model(model, n_samples, seed)
 
-    samples = { ENCODED_MEMBER: raw } if encoded else codec.decode(raw)
-    path    = sample_path(model, output)
-
-    np.savez(path, **sample_members(config, samples))                           # type: ignore[arg-type]
+    path = save_samples(str(sample_path(model, output)), config,
+                        { "Output": raw if encoded else codec.decode(raw) })
 
     click.echo(f"Wrote { path } ({ path.stat().st_size / 1e6 :.1f} MB).")

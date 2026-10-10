@@ -82,7 +82,7 @@ See `puppibuff plot --help` for details.
 puppibuff hls write  models/my_run -o outdir/            # Write HLS sources
 puppibuff hls build  outdir/                             # Synthesise sources
 puppibuff hls sample outdir/ models/my_run -n 1e5        # Sample firmware and Python
-puppibuff hls plot   outdir/outdir_samples.npz models/my_run
+puppibuff plot histograms outdir/outdir_samples.npz
 ```
 
 See `puppibuff hls --help` for details. 

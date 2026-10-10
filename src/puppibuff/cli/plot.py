@@ -1,12 +1,11 @@
-from ..archive import is_archive
+from ..archive import is_archive, load_samples
 from .common import (apply_style, COUNT, EXISTING_FILE, figure_path,
                      N_SAMPLES_DEFAULT, timed)
-from .sample import read_config, read_samples, sample_model
+from .sample import sample_model
 
 from zipfile import is_zipfile
 
 import click
-import numpy as np
 
 from typing import Callable, TYPE_CHECKING
 
@@ -28,7 +27,7 @@ def plot_options(command):
                      help = "Sampler seed, if SOURCE is a model."),
         click.option("--train-overlay", type = bool, 
                      default = True, show_default = True,
-                     help = "Include training dataset overlay."),
+                     help = "Include training dataset overlay, unless SOURCE holds two samples."),
         click.option("-o", "--output", type = click.Path(file_okay = False),
                      help = f"Output directory  [default: ./output/{ command.__name__ }/]"),
         click.option("--show", is_flag = True,
@@ -83,20 +82,29 @@ def draw(
             f"{ source } is neither a model archive nor an `.npz` of samples."
         )
 
+    series: dict[str, Source]
+
     if is_archive(source):
         config, codec, raw = sample_model(source, n_samples, seed)
-        samples = codec.decode(raw)
+        series = { "Output": codec.decode(raw) }
     else:
         refuse_options("n_samples", "seed")
 
-        arrays  = np.load(source)
-        config  = read_config(arrays)
-        samples = read_samples(arrays)
+        try:
+            config, samples = load_samples(source)
+        except ValueError as error:
+            raise click.BadParameter(str(error))
+
+        if not all(isinstance(sample, dict) for sample in samples.values()):
+            raise click.BadParameter(
+                "These samples are encoded. Draw again without `--encoded` to plot."
+            )
+
+        series = { label: sample for label, sample in samples.items() if isinstance(sample, dict) }
 
     data = config.dataset()             # Uses tqdm
 
-    series: dict[str, Source] = { "Output": samples }
-    if train_overlay:
+    if train_overlay and len(series) == 1:
         series["Training"] = data[:config.n_events]
 
     figure = timed(f"Drawing { plotter }", plotters[plotter], data, series)
@@ -115,7 +123,8 @@ def draw(
 
 @click.group()
 def plot() -> None:
-    """Draw a model or samples by `puppibuff sample` against its dataset.
+    """Draw a model or samples by `puppibuff sample` or `puppibuff hls sample`
+    against its target dataset.
 
     SOURCE is either a model archive, which is sampled first, or an `.npz` of
     samples, which get drawn immediately.

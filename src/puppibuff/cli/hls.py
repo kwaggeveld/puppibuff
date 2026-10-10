@@ -1,17 +1,13 @@
 from __future__ import annotations
 
-from ..archive import load_model
+from ..archive import load_model, save_samples
 from ..utils import initial_noise
-from .common import (apply_style, COUNT, EXISTING_FILE, figure_path,
-                     N_SAMPLES_DEFAULT, OUTPUT_DIR, timed)
+from .common import COUNT, EXISTING_FILE, N_SAMPLES_DEFAULT, OUTPUT_DIR, timed
 
 from pathlib import Path
 
 import click
-import numpy as np
-from numpy.lib.npyio import NpzFile
 
-from numpy.typing import NDArray
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -20,53 +16,6 @@ if TYPE_CHECKING:
     from ..hls import FlowHLS
 
 #-----------------------------------------------------------------------------
-
-SAMPLERS = ( "hls", "xgb" )             # `sample` writes both, `plot` reads both
-
-
-def sample_members(samples: dict[str, NDArray],
-                   codec: Codec | None) -> dict[str, NDArray]:
-    """Reshape and optionally decode the samples to be stored in a `.npz` file.
-
-    Decoded, store one decoded array per channel per sampler named as
-    `<sampler>_<channel>`. With no codec, each encoded array is stored under the
-    sampler's name instead.
-    """
-    if codec is None:
-        return { sampler: sample.astype(np.float32)
-                 for sampler, sample in samples.items() }
-
-    return { f"{ sampler }_{ channel }": values.astype(np.float32)
-             for sampler, sample in samples.items()
-             for channel, values in codec.decode(sample).items() }
-
-
-def read_samples(arrays: NpzFile, codec: Codec) -> dict[str, dict[str, NDArray]]:
-    """Both samplers' decoded channels out of a file `sample` wrote. 
-
-    An `--encoded` file holds one array per sampler and is decoded now. A
-    decoded one already has the channels so is left alone.
-    """
-    samples = {}
-
-    for sampler in SAMPLERS:
-        prefix = f"{ sampler }_"
-
-        if sampler in arrays.files:     # Encoded, so decode it now
-            samples[sampler] = codec.decode(arrays[sampler])
-        else:                           # Filter the `sampler`'s outputs
-            samples[sampler] = { name.removeprefix(prefix): arrays[name]
-                                 for name in arrays.files
-                                 if name.startswith(prefix) }
-
-        if not samples[sampler]:
-            raise click.BadParameter(
-                f"No { sampler } sample in this file. Generate new samples with "
-                f"`puppibuff hls sample`."
-            )
-
-    return samples
-
 
 def build_hls(model: FlowBDT, codec: Codec, workdir: str,
               merged: bool = True) -> FlowHLS:
@@ -153,59 +102,30 @@ def build(workdir: str) -> None:
 def sample(workdir: str, model: str, n_samples: int, encoded: bool) -> None:
     """Sample MODEL through both HLS and XGBoost from shared noise.
 
-    Saved into WORKDIR as decoded channels, one array per sampler per channel.
-    Kept encoded if `--encoded`. `puppibuff hls plot` draws, and optinally 
-    decodes, these generated samples.
+    Saved into WORKDIR as decoded channels, one array per sampler per channel,
+    with MODEL's config. Kept encoded if `--encoded`. `puppibuff plot` draws
+    the decoded samples.
     """
     from ..hls import constants
 
-    _, codec, flowbdt = load_model(model)
+    config, codec, flowbdt = load_model(model)
 
     flowhls = build_hls(flowbdt, codec, workdir)
 
     x0 = initial_noise((n_samples, flowhls.n_channels))
 
-    samples = {
-        "hls": timed(f"Sampling { n_samples } with hls", flowhls.sample,
+                                        # HLS first so ratios read HLS/target
+    samples = {                         # and HLS/XGBoost
+        "HLS": timed(f"Sampling { n_samples } with hls", flowhls.sample,
                      x0 = x0, solver = constants.SAMPLE_SOLVER),
-        "xgb": timed(f"Sampling { n_samples } with XGBoost", flowbdt.sample,
-                     x0 = x0, solver = constants.SAMPLE_SOLVER),
+        "XGBoost": timed(f"Sampling { n_samples } with XGBoost", flowbdt.sample,
+                         x0 = x0, solver = constants.SAMPLE_SOLVER),
     }
 
-    outdir  = Path(workdir)
-    path    = outdir / f"{ outdir.name }_samples.npz"
-    members = sample_members(samples, None if encoded else codec)
-    
-    np.savez(path, **members)                                                   # type: ignore[arg-type]
+    outdir = Path(workdir)
+    path   = outdir / f"{ outdir.name }_samples.npz"
+
+    save_samples(str(path), config, { label: raw if encoded else codec.decode(raw)
+                                      for label, raw in samples.items() })
 
     click.echo(f"Wrote { path } ({ path.stat().st_size / 1e6 :.1f} MB).")
-
-
-@hls.command()
-@click.argument("samples", type = EXISTING_FILE)
-@click.argument("model", type = EXISTING_FILE)
-@click.option("-o", "--output", type = click.Path(file_okay = False),
-              help = "Output directory  [default: ./output/hls/]")
-def plot(samples: str, model: str, output: str | None) -> None:
-    """Draw HLS/XGBoost's SAMPLES against the dataset MODEL was trained on."""
-    from ..analyses import plot_histograms
-
-    apply_style()
-
-    arrays = np.load(samples)
-
-    config, codec, _ = timed("Loading model", load_model, model)
-
-    sampled = read_samples(arrays, codec)
-
-    data = config.dataset()             # Uses tqdm
-
-                                        # HLS takes the primary slot so ratios
-                                        # read HLS/target and HLS/XGBoost
-    figure = timed("Drawing histograms", plot_histograms, data,
-                   { "HLS": sampled["hls"], "XGBoost": sampled["xgb"] })
-
-    path = figure_path("hls", samples, output)
-    figure.savefig(path, format = "pdf")
-
-    click.echo(f"Wrote { path }.")
