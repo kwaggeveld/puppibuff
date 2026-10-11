@@ -75,11 +75,11 @@ def unpad(target: Dataset, sample: dict[str, NDArray]) -> tuple[
     return real, gen, joint
 
 
-def model_size(model: FlowBDT, n_estimators: int, max_depth: int) -> int:
+def model_size(flowbdt: FlowBDT, n_estimators: int, max_depth: int) -> int:
     """Compute upper-bound of the total leaf count as proxy for model size:
         (# BDTs) x (# trees / BDT) x (# leaves / tree)
     """
-    return model.bdt_grid.size * n_estimators * 2 ** max_depth
+    return flowbdt.bdt_grid.size * n_estimators * 2 ** max_depth
 
 
 def events_label(n_events: int | None) -> str:
@@ -167,10 +167,10 @@ def main():  # NB: tqdm.write used instead of print() to preserve progress bar
                    f"{n_steps = } | n_events = { events_label(n_events) }")
 
         config = make_config(*grid_pt)
-        _, codec, model, x, y = config.setup(data)      # Reuse the shared dataset
-        model.fit(x, y)
+        _, codec, flowbdt, x, y = config.setup(data)    # Reuse the shared dataset
+        flowbdt.fit(x, y)
 
-        samples = codec.decode(model.sample(N_SAMPLES))
+        samples = codec.decode(flowbdt.sample(N_SAMPLES))
 
                                         # Per-channel Wasserstein is a marginal
                                         # diagnostic, sliced Wasserstein ranks models
@@ -179,7 +179,7 @@ def main():  # NB: tqdm.write used instead of print() to preserve progress bar
         per_channel = { channel: channel_wasserstein(real[channel], gen[channel])
                         for channel in real }
         SW1  = sliced_wasserstein(real, gen, joint)
-        size = model_size(model, n_estimators, max_depth)
+        size = model_size(flowbdt, n_estimators, max_depth)
 
                                         # Only sampled vs target distributions
         figure = plot_histograms(data, { "Output": samples })

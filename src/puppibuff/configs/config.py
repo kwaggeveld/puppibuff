@@ -57,7 +57,7 @@ class Config(ABC):
         x0: NDArray | None = None
     ) -> tuple[Dataset, Codec, FlowBDT, Paths, NDArray]:
         """Load the dataset, fit + apply the codec, build the flow-matching
-        training set, and construct the (untrained) model. Pass an already-loaded
+        training set, and construct the (untrained) FlowBDT. Pass an already-loaded
         `data` to reuse it instead of reloading from disk.
         """
         data = data if data is not None else self.dataset()
@@ -71,9 +71,9 @@ class Config(ABC):
         x, y = build_trainds(x1, self.n_steps, x0, train_rng)
 
         sizes = codec.group_sizes() if self.multi_output else None
-        model = FlowBDT(self.tree_config, sizes, sample_rng)
+        flowbdt = FlowBDT(self.tree_config, sizes, sample_rng)
 
-        return data, codec, model, x, y
+        return data, codec, flowbdt, x, y
 
     def rngs(self) -> tuple[np.random.Generator, np.random.Generator]:
         """Split train- and sample rngs from saved seed"""

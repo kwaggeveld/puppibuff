@@ -47,14 +47,14 @@ def make_config(n_steps: int) -> FlatPuppiJetConfig:
 def evaluate(
         data: Dataset,
         codec: Codec,
-        model: FlowBDT,
+        flowbdt: FlowBDT,
         solver: Solver,
         x0: NDArray,
     ) -> tuple[dict[str, NDArray], dict[str, float]]:
     """Integrate the field with `solver` from `x0`, decode, and score every
     channel against the full dataset.
     """
-    samples = codec.decode(model.sample(x0 = x0, solver = solver))
+    samples = codec.decode(flowbdt.sample(x0 = x0, solver = solver))
 
     return samples, { channel: channel_mse(data[channel], samples[channel])
                       for channel in CHANNELS }
@@ -90,11 +90,11 @@ def main():
 
     config = make_config(N_STEPS)
 
-    data, codec, model, x, y = config.setup()
-    model.fit(x, y)
+    data, codec, flowbdt, x, y = config.setup()
+    flowbdt.fit(x, y)
 
 
-    runs = [ (name, model, codec, solver, per_interval * (N_STEPS - 1))
+    runs = [ (name, flowbdt, codec, solver, per_interval * (N_STEPS - 1))
              for name, (solver, per_interval) in SOLVERS.items() ]
 
     losses = { label: [] for label, *_ in runs }
@@ -103,7 +103,7 @@ def main():
                                         # the solvers differ only in how they
                                         # integrate. Both models encode to the
                                         # same channels, so both can start here
-        x0 = initial_noise((N_SAMPLES, model.n_channels))
+        x0 = initial_noise((N_SAMPLES, flowbdt.n_channels))
 
         for label, run_model, run_codec, solver, _ in runs:
             samples, channel_losses = evaluate(data, run_codec, run_model,
@@ -119,7 +119,7 @@ def main():
             figure.savefig(f"{outdir}/{label}.pdf")
             plt.close(figure)
 
-    report(runs, losses, model.bdt_grid.shape[1])
+    report(runs, losses, flowbdt.bdt_grid.shape[1])
 
 
 if __name__ == "__main__":

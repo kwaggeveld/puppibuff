@@ -98,7 +98,7 @@ def overrides(config: Config, fields: dict, tree_config: dict) -> dict:
                 metavar = "[--XGBKEY=VALUE]...")
 def train(outfile: str, config_spec: str, config_file: str | None,
           passthrough: tuple[str, ...], **fields) -> None:
-    """Train a FlowBDT model and export it to OUTFILE, which can be read by 
+    """Train a model and export it to OUTFILE, which can be read by 
     `puppibuff.load_model` or the CLI. 
     
     Trains --config, or --config-file with every other option applied on top.
@@ -120,10 +120,10 @@ def train(outfile: str, config_spec: str, config_file: str | None,
 
     config = replace(config, **overrides(config, fields, tree_config))
                                         # `[1:]` to drop the dataset
-    codec, model, x, y = config.setup()[1:]
+    codec, flowbdt, x, y = config.setup()[1:]
 
-    model.fit(x, y)
+    flowbdt.fit(x, y)
 
-    save_model(outfile, config, codec, model)
+    save_model(outfile, config, codec, flowbdt)
 
-    click.echo(f"Wrote config, codec and model to { outfile }.")
+    click.echo(f"Wrote config, codec and FlowBDT to { outfile }.")

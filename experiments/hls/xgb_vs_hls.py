@@ -25,17 +25,17 @@ def main():                             # HLS project directory and the trained
 
     workdir = sys.argv[1]
 
-    config, codec, model = load_model(sys.argv[2])
+    config, codec, flowbdt = load_model(sys.argv[2])
     data = config.dataset()
 
-    hls = build_hls(model, codec, workdir)
+    hls = build_hls(flowbdt, codec, workdir)
 
     x0 = initial_noise((N_SAMPLES, hls.n_channels))
 
     hls_sample = timed(f"Sampling {N_HLS} with hls", hls.sample,
                        x0 = x0[:N_HLS], solver = constants.SAMPLE_SOLVER)
 
-    xgb_sample = timed(f"Sampling {N_SAMPLES} with xgboost", model.sample,
+    xgb_sample = timed(f"Sampling {N_SAMPLES} with xgboost", flowbdt.sample,
                        x0 = x0, solver = constants.SAMPLE_SOLVER)
 
                                         # HLS takes primary slot, ratios read

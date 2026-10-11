@@ -66,7 +66,7 @@ puppibuff train models/my_run
 puppibuff plot histograms models/my_run --show
 ```
 
-`train` writes one archive holding the config, codec and trained model together, which `puppibuff.load_model` loads. `plot` methods display samples from such a model:
+`train` writes one model archive holding the config, codec and trained FlowBDT together, which `puppibuff.load_model` loads. `plot` methods display samples from such a model:
 
 ```bash
 puppibuff plot histograms models/my_run -n 1e6 -s 0
@@ -99,13 +99,13 @@ from puppibuff.configs import FlatPuppiJetConfig
 config = FlatPuppiJetConfig(n_steps = 15, n_events = 500_000, seed = 0)
 config.tree_config["max_depth"] = 6
 
-data, codec, model, x, y = config.setup()   # Load, encode, build training paths
-model.fit(x, y)
+data, codec, flowbdt, x, y = config.setup()   # Load, encode, build training paths
+flowbdt.fit(x, y)
 
-samples = codec.decode(model.sample(1_000_000))
+samples = codec.decode(flowbdt.sample(1_000_000))
 figure  = plot_histograms(data, { "Output": samples, "Training": data[:config.n_events] })
 
-save_model("models/my_run", config, codec, model)
+save_model("models/my_run", config, codec, flowbdt)
 ```
 
 To train on your own data, subclass `Dataset`, load your set by overriding `_load`, and let `s_CHANNELS` name them. Pair that with a `Codec` in your own `Config`.

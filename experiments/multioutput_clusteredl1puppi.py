@@ -15,11 +15,11 @@ def main():
     config.tree_config["max_depth"] = 4
 
 
-    data, codec, model, x, y = config.setup()
+    data, codec, flowbdt, x, y = config.setup()
 
-    model.fit(x, y)
+    flowbdt.fit(x, y)
 
-    raw_samples = model.sample(500_000)
+    raw_samples = flowbdt.sample(500_000)
 
     samples = codec.decode(raw_samples)
 

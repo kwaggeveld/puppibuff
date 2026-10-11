@@ -40,11 +40,11 @@ def main():
 
     x, y = build_trainds(x1, config.n_steps, x0)
 
-    model = FlowBDT()
-    model.fit(x, y)
+    flowbdt = FlowBDT()
+    flowbdt.fit(x, y)
 
     x0 = noise(rng, config.n_events)
-    samples = codec.decode(model.sample(500_000, x0 = x0))
+    samples = codec.decode(flowbdt.sample(500_000, x0 = x0))
 
     figure = plot_contours(
         data, { "Output": samples, "Training": data[:config.n_events] },

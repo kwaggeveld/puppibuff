@@ -57,12 +57,12 @@ class FlowHLS:
     @classmethod
     def convert(
         cls,
-        model: FlowBDT,
+        flowbdt: FlowBDT,
         config_overrides: dict | None = None,
         output_dir: str = "flowhls",
         merged: bool = True,
     ) -> FlowHLS:
-        return cls(convert_grid(model, config_overrides, output_dir), output_dir, merged)
+        return cls(convert_grid(flowbdt, config_overrides, output_dir), output_dir, merged)
 
 
     @classmethod

@@ -16,11 +16,11 @@ plt.style.use("puppibuff.style")
 def main():
     config = FlatPuppiJetConfig()
 
-    data, codec, model, x, _ = config.setup()
+    data, codec, flowbdt, x, _ = config.setup()
 
-    model.fit(Paths(x.x0, x.x1, np.array([ 0 ])), x.x1)
+    flowbdt.fit(Paths(x.x0, x.x1, np.array([ 0 ])), x.x1)
 
-    raw_samples = model.predict(0., initial_noise((1_000_000, model.n_channels)))
+    raw_samples = flowbdt.predict(0., initial_noise((1_000_000, flowbdt.n_channels)))
 
     samples = codec.decode(raw_samples)
     print(f"SW1 = { sliced_wasserstein(data, samples) :.4g}")

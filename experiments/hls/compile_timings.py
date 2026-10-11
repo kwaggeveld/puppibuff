@@ -11,11 +11,11 @@ N_THREADS = 8                           # Set to this machine's cores by hand:
                                         # `cpu_count()` reports the whole node
                                         # on the cluster, not the allocation
 
-def timed_compile(model, codec, project: Path, n_threads: int) -> float:
-    """Convert and write `model` into a fresh `project` directory, then time the
+def timed_compile(flowbdt, codec, project: Path, n_threads: int) -> float:
+    """Convert and write `flowbdt` into a fresh `project` directory, then time the
     compile alone.
     """
-    hls = FlowHLS.convert(model, output_dir = str(project))
+    hls = FlowHLS.convert(flowbdt, output_dir = str(project))
     hls.write(codec)
 
     begin = time()
@@ -30,16 +30,16 @@ def main():
     config.tree_config["n_estimators"] = 20
     config.tree_config["max_depth"] = 2
 
-    _, codec, model, x, y = config.setup()
+    _, codec, flowbdt, x, y = config.setup()
 
-    model.fit(x, y)
+    flowbdt.fit(x, y)
 
     print("Compiling with a single thread...")
-    elapsed_single = timed_compile(model, codec, outdir / "single", n_threads = 1)
+    elapsed_single = timed_compile(flowbdt, codec, outdir / "single", n_threads = 1)
     print("Elapsed time: ", elapsed_single)
 
     print(f"Compiling with { N_THREADS } threads...")
-    elapsed_multi = timed_compile(model, codec, outdir / "multi", n_threads = N_THREADS)
+    elapsed_multi = timed_compile(flowbdt, codec, outdir / "multi", n_threads = N_THREADS)
     print("Elapsed time: ", elapsed_multi)
 
 

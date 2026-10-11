@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 #-----------------------------------------------------------------------------
 
-def build_hls(model: FlowBDT, codec: Codec, workdir: str,
+def build_hls(flowbdt: FlowBDT, codec: Codec, workdir: str,
               merged: bool = True) -> FlowHLS:
     """Bind a design in `workdir` that can be sampled from, reusing compiled and
     written designs.
@@ -33,7 +33,7 @@ def build_hls(model: FlowBDT, codec: Codec, workdir: str,
         flowhls = timed("Loading written design", FlowHLS.load, workdir,
                         attach = False)
     else:
-        flowhls = timed("Converting grid", FlowHLS.convert, model,
+        flowhls = timed("Converting grid", FlowHLS.convert, flowbdt,
                         output_dir = workdir, merged = merged)
         timed("Writing", flowhls.write, codec)
 

@@ -30,15 +30,15 @@ def convert_bdt(bdt: XGBModel, config: dict, output_dir: Path, name: str) -> Mod
 
 
 def convert_grid(
-    model: FlowBDT,
+    flowbdt: FlowBDT,
     config_overrides: dict | None = None,
     output_dir: str = "flowhls",
 ) -> NDArray:
-    """Convert every BDT of `model.bdt_grid` to a conifer model, one project
+    """Convert every BDT of `flowbdt.bdt_grid` to a conifer model, one project
     directory per BDT. Return an array of conifer models with the same
     (n_steps, n_groups) shape.
     """
-    if model.multi_output:
+    if flowbdt.multi_output:
         raise NotImplementedError(
             "Multi-output BDTs are not supported by conifer."
         )
@@ -49,8 +49,8 @@ def convert_grid(
 
     grid = [
         convert_bdt(bdt, config, *project_paths(root, step, group))
-        for step, row in enumerate(model.bdt_grid)
+        for step, row in enumerate(flowbdt.bdt_grid)
         for group, bdt in enumerate(row)
     ]
 
-    return np.array(grid, dtype = object).reshape(model.bdt_grid.shape)
+    return np.array(grid, dtype = object).reshape(flowbdt.bdt_grid.shape)

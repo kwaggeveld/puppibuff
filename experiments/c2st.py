@@ -23,14 +23,14 @@ def main():
     if len(sys.argv) < 2:
         sys.exit(f"Usage: {sys.argv[0]} <model>")
 
-    config, codec, model = load_model(sys.argv[1])
+    config, codec, flowbdt = load_model(sys.argv[1])
 
     data = config.dataset()
                                         # Try to use events that have not been 
                                         # used for training
     holdout = data[config.n_events:] if config.n_events is not None else data
 
-    samples = codec.decode(model.sample(N_SAMPLES))
+    samples = codec.decode(flowbdt.sample(N_SAMPLES))
 
     auc   = classifier_two_sample_test(holdout, samples, channels = CHANNELS,
                                        quantisation = GRID)
