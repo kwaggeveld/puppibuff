@@ -118,7 +118,11 @@ def train(outfile: str, config_spec: str, config_file: str | None,
 
     tree_config = tree_params(passthrough)
 
-    config = replace(config, **overrides(config, fields, tree_config))
+    try:
+        config = replace(config, **overrides(config, fields, tree_config))
+    except ValueError as error:
+        raise click.BadParameter(str(error))
+
                                         # `[1:]` to drop the dataset
     codec, flowbdt, x, y = config.setup()[1:]
 

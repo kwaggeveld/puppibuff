@@ -25,7 +25,7 @@ DEFAULT_TREE_CONFIG = {
     "subsample": 1.,
     "reg_alpha": .2,
     "reg_lambda": .1,
-    "seed": 666,
+    "random_state": 666,
     "tree_method": "hist",
     "device": "cpu",
 }
@@ -45,11 +45,13 @@ class Config(ABC):
 
     multi_output: bool = False          # One multi-output BDT per (step, channel)
 
-    tree_config: dict = field(default_factory = lambda: dict(DEFAULT_TREE_CONFIG))
+    tree_config: dict = field(default_factory = dict)  # Merged onto DEFAULT_TREE_CONFIG
 
     def __post_init__(self) -> None:
-        if self.multi_output:
-            self.tree_config.setdefault("multi_strategy", "multi_output_tree")
+        if "multi_strategy" in self.tree_config:
+            raise ValueError("Set `multi_output` instead of `multi_strategy`.")
+
+        self.tree_config = DEFAULT_TREE_CONFIG | self.tree_config
 
     def setup(
         self, 

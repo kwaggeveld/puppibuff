@@ -16,23 +16,26 @@ from numpy.typing import NDArray
 class FlowBDT():
     def __init__(
         self,
-        config: dict | None = None,
+        tree_config: dict | None = None,
         group_sizes: list[int] | None = None, # Widths of the column blocks
                                               # each BDT predicts
         rng: np.random.Generator | None = None, # Draws `sample`'s noise
     ) -> None:
-        self.config = dict(config or {}) # Need empty dict option for .load()
+        self.tree_config = dict(tree_config or {}) # Need empty dict option for .load()
         self.group_sizes = list(group_sizes or []) # Empty => one BDT per channel
         self.rng = rng
 
 
     @property
     def multi_output(self) -> bool:
-        return self.config.get("multi_strategy") == "multi_output_tree"
+        return any(size > 1 for size in self.group_sizes)
 
 
     def _fit_one(self, x: NDArray, y: NDArray, sample_weights: NDArray | None = None) -> XGBModel:
-        return XGBRegressor(**self.config).fit(x, y, sample_weight = sample_weights)
+        strategy = { "multi_strategy": "multi_output_tree" } if self.multi_output else {}
+
+        return (XGBRegressor(**self.tree_config, **strategy)
+                .fit(x, y, sample_weight = sample_weights))
 
 
     def _prepare_targets(self, y: NDArray) -> list[NDArray]:
@@ -118,8 +121,8 @@ class FlowBDT():
         obj.__dict__.update(joblib.load(path))
 
         grid = []
-        for raw in obj.bdt_grid:        # Seeded from self.config: a raw booster
-            bdt = XGBRegressor(**obj.config)  # carries no sklearn-side params
+        for raw in obj.bdt_grid:
+            bdt = XGBRegressor(**obj.tree_config)
             bdt.load_model(raw)                                               # type: ignore
             grid.append(bdt)
 
