@@ -124,7 +124,7 @@ def real_mask(mask: NDArray) -> NDArray:
     return mask > .5
 
 
-def multiplicity(mask: NDArray) -> NDArray:
+def multiplicities(mask: NDArray) -> NDArray:
     """Number of genuine constituents per jet from an `(N, M)` `real` channel."""
     return real_mask(mask).sum(axis = 1)
 
@@ -140,5 +140,5 @@ def flatten(source: Source, channels: list[str] | None = None) -> dict[str, NDAr
 
     genuine = real_mask(source["real"])
 
-    return ({ "multiplicity": multiplicity(source["real"]) }
+    return ({ "multiplicity": multiplicities(source["real"]) }
             | { channel: source[channel][genuine] for channel in channels })
