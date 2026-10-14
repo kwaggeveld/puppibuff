@@ -47,8 +47,8 @@ class ToyConstituent(Dataset):
         rng = np.random.default_rng(self.seed)
         shape = (self.size, self.s_SLOTS)
 
-        multiplicity = np.clip(rng.poisson(4, self.size), 1, self.s_SLOTS)
-        real = np.arange(self.s_SLOTS) < multiplicity[:, None]
+        multiplicities = np.clip(rng.poisson(4, self.size), 1, self.s_SLOTS)
+        real = np.arange(self.s_SLOTS) < multiplicities[:, None]
 
         axis_eta = rng.normal(0, 1.5, (self.size, 1))
         axis_phi = rng.uniform(-np.pi, np.pi, (self.size, 1))

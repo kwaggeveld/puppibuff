@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from puppibuff import Config, Dataset, FlowBDT
 from puppibuff.analyses import channel_wasserstein, sliced_wasserstein, plot_histograms
-from puppibuff.configs import MultiplicityL1PuppiConfig
+from puppibuff.configs import FlatPuppiJetConfig
 from puppibuff.utils import output_dir
 
 from itertools import product
@@ -20,7 +20,7 @@ from numpy.typing import NDArray
 # the Cartesian product of the axes below is trained, sampled and scored against
 # the data, one figure per combination. Runs sequentially.
 
-BASE_CONFIG = MultiplicityL1PuppiConfig # Dataset + codec every grid point shares
+BASE_CONFIG = FlatPuppiJetConfig    # Dataset + codec every grid point shares
 
 MAX_DEPTH    = [ 3, 4, 6 ]              # XGBoost tree depth
 N_ESTIMATORS = [ 20, 50, 100 ]          # Trees per BDT

@@ -64,8 +64,9 @@ class Config(ABC):
         
         train_rng, sample_rng = self.rngs()
 
-        x1 = codec.encode(data[:self.n_events])
-        x, y = build_trainds(x1, self.n_steps, x0, train_rng)
+        train_data = data[:self.n_events]
+        x, y = build_trainds(codec.encode(train_data), self.n_steps, x0,
+                             train_rng, real = codec.real_slots(train_data))
 
         flowbdt = FlowBDT(self.tree_config, sample_rng)
 

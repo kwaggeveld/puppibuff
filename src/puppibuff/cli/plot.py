@@ -50,8 +50,8 @@ def plot(kind: str, source: str, n_samples: int, seed: int | None,
     series: dict[str, Source]
 
     if is_archive(source):
-        config, codec, raw = sample_model(source, n_samples, seed)
-        series = { "Output": codec.decode(raw) }
+        config, codec, raw, multiplicities = sample_model(source, n_samples, seed)
+        series = { "Output": codec.decode(raw, multiplicities) }
     else:
         if given("n_samples", "seed"):
             raise click.BadParameter(

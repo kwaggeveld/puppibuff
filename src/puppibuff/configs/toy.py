@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from .config import Config
 from ..datasets import ToyJet, ToyConstituent
-from ..codecs import JetCodec, MultiplicityCodec
+from ..codecs import ConstituentCodec, JetCodec
 
 from dataclasses import dataclass
 
@@ -17,4 +17,4 @@ class ToyJetConfig(Config):
 @dataclass
 class ToyConstituentConfig(Config):
     dataset = ToyConstituent
-    codec   = MultiplicityCodec
+    codec   = ConstituentCodec

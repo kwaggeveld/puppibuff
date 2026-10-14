@@ -43,12 +43,20 @@ class Codec(ABC):
         ...
 
     @abstractmethod
-    def decode(self, out: NDArray) -> dict[str, NDArray]:
+    def decode(self, out: NDArray, multiplicities: NDArray | None = None) -> dict[str, NDArray]:
         """Reverse the transformations done by `encode`, return as one physical 
         array per `s_DECODED. `out` is `(n_events, n_columns)` as `encode` 
-        returns.
+        returns;
+
+        Samples are generated from `multiplicities`, if conditioned. 
         """
         ...
+
+    def real_slots(self, data: Dataset) -> NDArray | None:
+        """Each event's real slots as `(n_events, M)` bools.
+        None for an unconditional model.
+        """
+        return None
 
 # --- HLS export ---
 

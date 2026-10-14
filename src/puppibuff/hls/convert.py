@@ -38,6 +38,11 @@ def convert_grid(
     directory per BDT. Return an array of conifer models with the same
     (n_steps, n_channels) shape.
     """
+    if flowbdt.max_multiplicity is not None:
+        raise NotImplementedError(
+            "HLS supports does not support FlowBDT conditioned on multiplicity."
+        )
+
     config = hls_config(**(config_overrides or {}))
 
     root = Path(output_dir).resolve()

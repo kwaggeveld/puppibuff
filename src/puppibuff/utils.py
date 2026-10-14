@@ -119,14 +119,14 @@ def from_state(state: dict) -> object:
 Source: TypeAlias = "Dataset | Mapping[str, NDArray]"
 
 
-def real_mask(mask: NDArray) -> NDArray:
+def bool_mask(mask: NDArray) -> NDArray:
     """Boolean form of a `real` channel."""
     return mask > .5
 
 
 def multiplicities(mask: NDArray) -> NDArray:
     """Number of genuine constituents per jet from an `(N, M)` `real` channel."""
-    return real_mask(mask).sum(axis = 1)
+    return bool_mask(mask).sum(axis = 1)
 
 
 def flatten(source: Source, channels: list[str] | None = None) -> dict[str, NDArray]:
@@ -138,7 +138,7 @@ def flatten(source: Source, channels: list[str] | None = None) -> dict[str, NDAr
     if "real" not in source:
         return { channel: source[channel] for channel in channels }
 
-    genuine = real_mask(source["real"])
+    genuine = bool_mask(source["real"])
 
     return ({ "multiplicity": multiplicities(source["real"]) }
             | { channel: source[channel][genuine] for channel in channels })

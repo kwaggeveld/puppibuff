@@ -33,8 +33,11 @@ def build_hls(flowbdt: FlowBDT, codec: Codec, workdir: str,
         flowhls = timed("Loading written design", FlowHLS.load, workdir,
                         attach = False)
     else:
-        flowhls = timed("Converting grid", FlowHLS.convert, flowbdt,
-                        output_dir = workdir, merged = merged)
+        try:
+            flowhls = timed("Converting grid", FlowHLS.convert, flowbdt,
+                            output_dir = workdir, merged = merged)
+        except NotImplementedError as error:
+            raise click.ClickException(str(error))
         timed("Writing", flowhls.write, codec)
 
     timed("Compiling", flowhls.compile)
@@ -62,7 +65,11 @@ def write(model: str, output: str | None, per_bdt: bool) -> None:
     if output is None:                  # Beside the figures, one dir per model
         output = str(default_out("hls", model, ""))
 
-    flowhls = FlowHLS.convert(flowbdt, output_dir = output, merged = not per_bdt)
+    try:
+        flowhls = FlowHLS.convert(flowbdt, output_dir = output, merged = not per_bdt)
+    except NotImplementedError as error:
+        raise click.ClickException(str(error))
+
     flowhls.write(codec)
 
     click.echo(f"Wrote { flowhls.output_dir }.")

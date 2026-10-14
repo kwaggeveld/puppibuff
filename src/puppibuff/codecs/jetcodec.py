@@ -45,7 +45,7 @@ class JetCodec(Codec):
         return np.column_stack(encoded_channels)
 
 
-    def decode(self, out: NDArray) -> dict[str, NDArray]:
+    def decode(self, out: NDArray, multiplicities: NDArray | None = None) -> dict[str, NDArray]:
         return self._decode_channels(*out.T)
 
 
