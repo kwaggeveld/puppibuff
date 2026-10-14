@@ -30,10 +30,6 @@ class PaddedCodec(JetCodec):
         self.multiplicity = data["real"].shape[1]   # Slots per jet
 
 
-    def group_sizes(self) -> list[int]:
-        """One block of size `M` for each feature"""
-        return [ self.multiplicity ] * self.n_features
-
     def encode(self, data: Dataset) -> NDArray:
         real = data["real"].astype(np.float32)          # (n_events, M), 0/1
         encoded_channels = self._encode_channels(

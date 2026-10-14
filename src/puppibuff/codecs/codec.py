@@ -50,16 +50,6 @@ class Codec(ABC):
         """
         ...
 
-    @abstractmethod
-    def group_sizes(self) -> list[int]:
-        """How many encoded columns each multi-output BDT predicts jointly.
-
-        A group is a contiguous block of `encode`'s columns and each column must 
-        be part of one group, so the widths should sum to `n_columns`. 
-        `[1] * n_columns` is one single-output BDT per column.
-        """
-        ...
-
 # --- HLS export ---
 
     @property

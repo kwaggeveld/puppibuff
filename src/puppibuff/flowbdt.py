@@ -17,41 +17,14 @@ class FlowBDT():
     def __init__(
         self,
         tree_config: dict | None = None,
-        group_sizes: list[int] | None = None, # Widths of the column blocks
-                                              # each BDT predicts
         rng: np.random.Generator | None = None, # Draws `sample`'s noise
     ) -> None:
         self.tree_config = dict(tree_config or {}) # Need empty dict option for .load()
-        self.group_sizes = list(group_sizes or []) # Empty => one BDT per channel
         self.rng = rng
 
 
-    @property
-    def multi_output(self) -> bool:
-        return any(size > 1 for size in self.group_sizes)
-
-
     def _fit_one(self, x: NDArray, y: NDArray, sample_weights: NDArray | None = None) -> XGBModel:
-        strategy = { "multi_strategy": "multi_output_tree" } if self.multi_output else {}
-
-        return (XGBRegressor(**self.tree_config, **strategy)
-                .fit(x, y, sample_weight = sample_weights))
-
-
-    def _prepare_targets(self, y: NDArray) -> list[NDArray]:
-        """Default group_sizes to one group per channel, validate it against
-        y's column count, then split y into per-group target blocks.
-        """
-        if not self.group_sizes:
-            self.group_sizes = [1] * self.n_channels
-
-        if sum(self.group_sizes) != self.n_channels:
-            raise ValueError(
-                f"Group sizes {self.group_sizes} sum to {sum(self.group_sizes)}, "
-                f"but y has {self.n_channels} columns"
-            )
-
-        return np.split(y, np.cumsum(self.group_sizes)[:-1], axis = 1)
+        return XGBRegressor(**self.tree_config).fit(x, y, sample_weight = sample_weights)
 
 
     def fit(
@@ -64,20 +37,18 @@ class FlowBDT():
         self.n_steps    = x.n_steps
         self.n_channels = y.shape[1]
 
-        targets = self._prepare_targets(y)
-
         ensemble = []
-        with tqdm(total = self.n_steps * len(targets),
+        with tqdm(total = self.n_steps * self.n_channels,
                   desc  = "Training BDT grid") as progress_bar:
             for step in range(self.n_steps):
-                xt = x[step]            # Shared by every group of this step
+                xt = x[step]            # Shared by every channel of this step
 
-                for target in targets:
-                    ensemble.append(self._fit_one(xt, target, sample_weights))
+                for channel in range(self.n_channels):
+                    ensemble.append(self._fit_one(xt, y[:, channel], sample_weights))
                     progress_bar.update()
 
         self.bdt_grid = (np.array(ensemble, dtype = object)
-                            .reshape(self.n_steps, len(targets)))
+                            .reshape(self.n_steps, self.n_channels))
 
 
     def predict(self, t: float, xt: NDArray) -> NDArray:

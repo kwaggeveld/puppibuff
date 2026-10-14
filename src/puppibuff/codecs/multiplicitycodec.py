@@ -32,14 +32,6 @@ class MultiplicityCodec(JetCodec):
         self.multiplicity = data["real"].shape[1]   # Slots per jet, lost by encode()
 
 
-    def group_sizes(self) -> list[int]:
-        """One group per physical channel spanning every slot (encode() is
-        channel-major, so a channel's columns are consecutive), plus the
-        trailing multiplicity column on its own.
-        """
-        return [self.multiplicity] * self.n_features + [ 1 ]
-
-
     def encode(self, data: Dataset) -> NDArray:
         encoded_channels = self._encode_channels(
             data["pt"], data["eta"], data["phi"]

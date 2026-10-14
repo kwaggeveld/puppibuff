@@ -16,10 +16,10 @@ def hls_config(**overrides) -> dict:
             | overrides)
 
 
-def project_paths(root: Path, step: int, group: int) -> tuple[Path, str]:
-    """The project directory and BDT name at (step, group)."""
-    return (root / c.BDT_DATA / f"step{step:02d}" / f"group{group:02d}",
-            f"bdt_s{step:02d}_g{group:02d}")
+def project_paths(root: Path, step: int, channel: int) -> tuple[Path, str]:
+    """The project directory and BDT name at (step, channel)."""
+    return (root / c.BDT_DATA / f"step{ step :02d}" / f"channel{ channel :02d}",
+            f"bdt_s{ step :02d}_c{ channel :02d}")
 
 
 def bridge_path(output_dir: Path | str, name: str) -> Path:

@@ -61,12 +61,12 @@ def load_grid(output_dir: str | Path = "flowhls", attach: bool = True) -> NDArra
     if not n_steps:
         raise FileNotFoundError(f"No step directories in {root}, convert a grid first.")
 
-    n_groups = len(list((bdt_data / "step00").glob("group*")))
+    n_channels = len(list((bdt_data / "step00").glob("channel*")))
 
     grid = [
-        load_bdt(*project_paths(root, step, group), attach = attach)
+        load_bdt(*project_paths(root, step, channel), attach = attach)
         for step in range(n_steps)
-        for group in range(n_groups)
+        for channel in range(n_channels)
     ]
 
-    return np.array(grid, dtype = object).reshape(n_steps, n_groups)
+    return np.array(grid, dtype = object).reshape(n_steps, n_channels)

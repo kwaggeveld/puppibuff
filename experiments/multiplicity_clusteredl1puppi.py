@@ -7,8 +7,7 @@ plt.style.use("puppibuff.style")
 #-----------------------------------------------------------------------------
 
 def main():
-    config = MultiplicityL1PuppiConfig(multi_output = False,
-                                       n_steps = 4)
+    config = MultiplicityL1PuppiConfig(n_steps = 4)
     config.n_events = 100_000
     config.tree_config["n_estimators"] = 20
     config.tree_config["max_depth"] = 2

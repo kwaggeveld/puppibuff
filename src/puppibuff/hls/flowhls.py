@@ -44,7 +44,7 @@ class FlowHLS:
         output_dir: Path | str = "flowhls",
         merged: bool = True,
     ) -> None:
-        self.bdt_grid   = grid          # (n_steps, n_groups) grid of conifer models
+        self.bdt_grid   = grid          # (n_steps, n_channels) grid of conifer models
         self.output_dir = Path(output_dir).resolve()
         self.n_steps    = grid.shape[0]
         self.n_channels = grid[0, 0].n_features
@@ -165,14 +165,14 @@ class FlowHLS:
 
 
     def _save_bdt_data(self) -> None:
-        """Save every BDT's `.json`, in the same step/group tree 
+        """Save every BDT's `.json`, in the same step/channel tree 
         `merged = False` writes.
         """
         models_pbar = tqdm(np.ndenumerate(self.bdt_grid),
                            total = self.bdt_grid.size, desc = "save")
 
-        for (step, group), model in models_pbar:
-            project_dir, name = project_paths(self.output_dir, step, group)
+        for (step, channel), model in models_pbar:
+            project_dir, name = project_paths(self.output_dir, step, channel)
             model.save(str(project_dir / f"{name}.json"))
 
 
@@ -196,7 +196,7 @@ class FlowHLS:
             },
 
             **{                         # One header per BDT
-                f"firmware/bdt_grid/{ model.config.project_name }.hh": write.bdt_sXX_gXX_hh(model)
+                f"firmware/bdt_grid/{ model.config.project_name }.hh": write.bdt_sXX_cXX_hh(model)
                 for model in self.bdt_grid.flat
             },
                                         # HLS project `.tcl` scripts

@@ -43,14 +43,9 @@ class Config(ABC):
     s1phi: bool = False                 # Encode phi -> (sin, cos) rather than
                                         # normalising it into one channel
 
-    multi_output: bool = False          # One multi-output BDT per (step, channel)
-
     tree_config: dict = field(default_factory = dict)  # Merged onto DEFAULT_TREE_CONFIG
 
     def __post_init__(self) -> None:
-        if "multi_strategy" in self.tree_config:
-            raise ValueError("Set `multi_output` instead of `multi_strategy`.")
-
         self.tree_config = DEFAULT_TREE_CONFIG | self.tree_config
 
     def setup(
@@ -72,8 +67,7 @@ class Config(ABC):
         x1 = codec.encode(data[:self.n_events])
         x, y = build_trainds(x1, self.n_steps, x0, train_rng)
 
-        sizes = codec.group_sizes() if self.multi_output else None
-        flowbdt = FlowBDT(self.tree_config, sizes, sample_rng)
+        flowbdt = FlowBDT(self.tree_config, sample_rng)
 
         return data, codec, flowbdt, x, y
 

@@ -49,11 +49,6 @@ class JetCodec(Codec):
         return self._decode_channels(*out.T)
 
 
-    def group_sizes(self) -> list[int]:
-        """One single-output BDT per column."""
-        return [ 1 ] * self.n_features
-
-
     @property
     def n_decoded(self) -> int:
         """Every decoded channel."""

@@ -36,21 +36,16 @@ def convert_grid(
 ) -> NDArray:
     """Convert every BDT of `flowbdt.bdt_grid` to a conifer model, one project
     directory per BDT. Return an array of conifer models with the same
-    (n_steps, n_groups) shape.
+    (n_steps, n_channels) shape.
     """
-    if flowbdt.multi_output:
-        raise NotImplementedError(
-            "Multi-output BDTs are not supported by conifer."
-        )
-
     config = hls_config(**(config_overrides or {}))
 
     root = Path(output_dir).resolve()
 
     grid = [
-        convert_bdt(bdt, config, *project_paths(root, step, group))
+        convert_bdt(bdt, config, *project_paths(root, step, channel))
         for step, row in enumerate(flowbdt.bdt_grid)
-        for group, bdt in enumerate(row)
+        for channel, bdt in enumerate(row)
     ]
 
     return np.array(grid, dtype = object).reshape(flowbdt.bdt_grid.shape)

@@ -58,7 +58,7 @@ def _tree(tree, idx: int) -> str:
             f"const tree_{ idx :02d} =\n{{\n" + ",\n".join(rows) + "\n};")
 
 
-def bdt_sXX_gXX_hh(model: XilinxHLSModel) -> str:
+def bdt_sXX_cXX_hh(model: XilinxHLSModel) -> str:
     trees = '\n'.join(_tree(tree[0], idx)
                       for idx, tree in enumerate(model.trees))
 

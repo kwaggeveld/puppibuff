@@ -92,8 +92,6 @@ def overrides(config: Config, fields: dict, tree_config: dict) -> dict:
 @click.option("--seed", type = int, help = "Seed for the noise.")
 @click.option("--s1phi", type = bool,
               help = "Encode phi as (sin, cos) rather than as one channel.")
-@click.option("--multi-output", type = bool,
-              help = "Use one multi-output BDT per channel group.")
 @click.argument("passthrough", nargs = -1, type = click.UNPROCESSED,
                 metavar = "[--XGBKEY=VALUE]...")
 def train(outfile: str, config_spec: str, config_file: str | None,
