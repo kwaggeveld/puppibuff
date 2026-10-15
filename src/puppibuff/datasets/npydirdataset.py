@@ -46,4 +46,4 @@ class NpyDirDataset(Dataset):
 
     def _select(self, data: dict) -> dict[str, NDArray]:
         """Select this dataset's events and channels out of one loaded batch"""
-        return data
+        return { channel: data[channel] for channel in self.s_CHANNELS }

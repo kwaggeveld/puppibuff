@@ -75,12 +75,23 @@ def zero_pad(field: ak.Array, m: int) -> NDArray:
     return ak.to_numpy(ak.fill_none(padded, 0.0)).astype(np.float32)
 
 
+def jet_kinematics(cs: fj.ClusterSequence) -> dict[str, NDArray]:
+    """Net kinematics for each jet."""
+    jets = ak.flatten(cs.inclusive_jets(), axis = 1)   # n_jets, Momentum4D
+
+    return {
+        "jet_" + channel: ak.to_numpy(getattr(jets, channel)).astype(np.float32)
+        for channel in ( "pt", "eta", "phi" )
+    }
+
+
 def cluster_flatten_zeropad(file: Path, multiplicity: int) -> dict[str, NDArray]:
     """Cluster one file's events into jets, then zero-pad or truncate each jet's
     constituents to a fixed length `m`.
 
     Returns dense (n_jets, m) arrays for keys "pt"/"eta"/"phi", plus a "real" 
     mask (1 = particle, 0 = padding). Particle are pt-sorted (descending).
+    The jet's net kinematics, are (n_jets,) arrays "jet_pt"/"jet_eta"/"jet_phi".
     """
     cs = cluster_file(file)
     jets = ak.flatten(cs.constituents(), axis = 1)   # n_jets * var (particles)
@@ -92,14 +103,15 @@ def cluster_flatten_zeropad(file: Path, multiplicity: int) -> dict[str, NDArray]
     }
     channels["real"] = zero_pad(ak.ones_like(jets.pt), multiplicity)
 
-    return channels
+    return channels | jet_kinematics(cs)
 
 
 def write_metadata(out_dir: Path, multiplicity: int) -> None:
     (out_dir / "metadata.txt").write_text(
         f"Clustered with anti-kt (R = {JETDEF.R()}) and zero-padded/truncated to "
         f"multiplicity = {multiplicity} particles per jet.\n"
-        f"Channels: pt, eta, phi, real (1 = particle, 0 = padding).\n"
+        f"Channels: pt, eta, phi, real (1 = particle, 0 = padding), and per jet "
+        f"kinematics jet_pt, jet_eta, jet_phi.\n"
     )
 
 
