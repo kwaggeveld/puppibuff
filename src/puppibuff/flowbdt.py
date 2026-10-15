@@ -164,13 +164,21 @@ class FlowBDT:
     ) -> NDArray:
         """Starting from noise, provided or sampled here, integrate the learnt
         vector field to generate a new sample, conditioned on `multiplicities`
-        if given.
+        if given, or sampled here if needed.
         """
         shape = None if n_samples is None else (n_samples, self.n_channels)
         x0    = initial_noise(shape, x0, rng or self.rng)
 
+        if multiplicities is None:
+            multiplicities = self.sample_multiplicities(len(x0), rng)
+
         conditioned_predict = partial(self.predict, multiplicities = multiplicities)
-        return solver(conditioned_predict, x0, self.n_steps)
+        raw = solver(conditioned_predict, x0, self.n_steps)
+
+        if multiplicities is None:
+            return raw
+
+        return np.column_stack([ raw, multiplicities.astype(raw.dtype) ])
 
 
 # --- Export/import ---

@@ -44,13 +44,11 @@ class ConstituentCodec(JetCodec):
         return utils.bool_mask(data["real"])
 
 
-    def decode(self, out: NDArray, multiplicities: NDArray | None = None) -> dict[str, NDArray]:
-        if multiplicities is None:
-            raise ValueError("ConstituentCodec requires the multiplicities that "
-                             "the samples were drawn under")
-                                        # (N, n_features, M) -> per channel
-        jets = out.reshape(len(out), self.n_features, self.max_multiplicity)
-        real = np.arange(self.max_multiplicity) < multiplicities[:, None]
+    def decode(self, out: NDArray) -> dict[str, NDArray]:
+                                        # (N, n_features * M + 1), multiplicity
+                                        # so last -> (N, n_features, M) per channel
+        jets = out[:, :-1].reshape(len(out), self.n_features, self.max_multiplicity)
+        real = np.arange(self.max_multiplicity) < out[:, -1:]
 
         channels = self._decode_channels(*np.moveaxis(jets, 1, 0))
 

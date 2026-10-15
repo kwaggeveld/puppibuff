@@ -47,7 +47,7 @@ class MultiplicityCodec(JetCodec):
         ).astype(np.float32)
 
 
-    def decode(self, out: NDArray, multiplicities: NDArray | None = None) -> dict[str, NDArray]:
+    def decode(self, out: NDArray) -> dict[str, NDArray]:
                                         # (n_events, n_features * M + 1)
                                         # -> (n_events, n_features, M)
         jets = out[:, :-1].reshape(out.shape[0], self.n_features, -1)

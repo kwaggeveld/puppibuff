@@ -43,12 +43,10 @@ class Codec(ABC):
         ...
 
     @abstractmethod
-    def decode(self, out: NDArray, multiplicities: NDArray | None = None) -> dict[str, NDArray]:
+    def decode(self, out: NDArray) -> dict[str, NDArray]:
         """Reverse the transformations done by `encode`, return as one physical 
         array per `s_DECODED. `out` is `(n_events, n_columns)` as `encode` 
-        returns;
-
-        Samples are generated from `multiplicities`, if conditioned. 
+        returns, with a trailing multiplicity column if conditioned.
         """
         ...
 
