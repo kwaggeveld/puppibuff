@@ -1,7 +1,6 @@
 from .config import Config
 from .flatpuppijet import FlatPuppiJetConfig
 from .clusteredl1puppi import ClusteredL1PuppiConfig, RelativeL1PuppiConfig
-from .multiplicityl1puppi import MultiplicityL1PuppiConfig
 from .toy import ToyJetConfig, ToyConstituentConfig
 
 __all__ = [
@@ -9,7 +8,6 @@ __all__ = [
     "FlatPuppiJetConfig",
     "ClusteredL1PuppiConfig",
     "RelativeL1PuppiConfig",
-    "MultiplicityL1PuppiConfig",
     "ToyJetConfig",
     "ToyConstituentConfig",
 ]
