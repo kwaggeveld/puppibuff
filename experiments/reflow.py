@@ -1,7 +1,6 @@
-from puppibuff import build_trainds, FlowBDT
+from puppibuff import FlowBDT, load_model
 from puppibuff.analyses import plot_histograms, sliced_wasserstein
-from puppibuff.configs import FlatPuppiJetConfig
-from puppibuff.utils import initial_noise, output_dir
+from puppibuff.utils import flatten, initial_noise, output_dir
 
 import matplotlib.pyplot as plt
 plt.style.use("puppibuff.style")
@@ -13,30 +12,37 @@ plt.style.use("puppibuff.style")
 # a new flow on those pairs. The new paths are near straight and a few steps
 # do trick. Dramatically decreases model size.
 
-N_STEPS = 2                             # Of the reflowed grid model
+TEACHER   = "models/cond_const_relative_default"
+N_STEPS   = 2                           # Of the reflowed grid model
+N_PAIRS   = 1_000_000                   # N. of (noise, sample) pairs to reflow on
+N_SAMPLES = 1_000_000                   # Plotting
+
+CHANNELS  = [ "pt", "eta", "phi" ]
+
+def n_bdts(flowbdt: FlowBDT) -> int:
+    """BDTs the sampler evaluates: `ab2` never evaluates the last row, and
+    slots that were never real have none.
+    """
+    return sum(bdt is not None for bdt in flowbdt.bdt_grid[:-1].flat)
+
 
 def main():
-    config = FlatPuppiJetConfig()
+    config, codec, flowbdt = load_model(TEACHER)
+    data = config.dataset()
 
-    data, codec, flow, x, y = config.setup()
-    flow.fit(x, y)
+    reflowed = flowbdt.reflow(N_STEPS, N_PAIRS)
 
-    x0 = initial_noise((len(x.x0), flow.n_channels))
+                                        # Same noise and multiplicities for both
+    noise          = initial_noise((N_SAMPLES, flowbdt.n_channels))
+    multiplicities = reflowed.sample_multiplicities(N_SAMPLES)
+    teacher = codec.decode(flowbdt.sample(x0 = noise, multiplicities = multiplicities))
+    samples = codec.decode(reflowed.sample(x0 = noise, multiplicities = multiplicities))
 
-    reflow = FlowBDT(config.tree_config)
-    reflow.fit(*build_trainds(flow.sample(x0 = x0), N_STEPS, x0))
-
-    noise   = initial_noise((1_000_000, flow.n_channels))
-    teacher = codec.decode(flow.sample(x0 = noise))
-    samples = codec.decode(reflow.sample(x0 = noise))
-    
-    
-                                        # `ab2`` never evaluates BDTs on the 
-                                        # the last row, so not included in count
-    print(f"SW1 flow   = { sliced_wasserstein(data, teacher) :.4g}   "
-          f"BDTs = { flow.bdt_grid[:-1].size }")
-    print(f"SW1 reflow = { sliced_wasserstein(data, samples) :.4g}   "
-          f"BDTs = { reflow.bdt_grid[:-1].size }")
+    target = flatten(data)
+    print(f"SW1 flow   = { sliced_wasserstein(target, flatten(teacher), CHANNELS) :.4g}   "
+          f"BDTs = { n_bdts(flowbdt) }")
+    print(f"SW1 reflow = { sliced_wasserstein(target, flatten(samples), CHANNELS) :.4g}   "
+          f"BDTs = { n_bdts(reflowed) }")
 
     figure = plot_histograms(data, { "Reflow": samples, "Flow matching": teacher })
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .build_trainds import Paths
+from .build_trainds import build_trainds, Paths
 from .solvers import ab2_solve, Solver
 from .utils import initial_noise, t_to_step
 
@@ -179,6 +179,25 @@ class FlowBDT:
             return raw
 
         return np.column_stack([ raw, multiplicities.astype(raw.dtype) ])
+
+
+    def reflow(self, n_steps: int, n_pairs: int) -> FlowBDT:
+        """Reflow this FlowBDT: train a FlowBDT with `n_steps` on `n_pairs` of 
+        noise and generated samples from it.
+        
+        (2-rectified flow, arXiv:2209.03003).
+        """
+        x0 = initial_noise((n_pairs, self.n_channels), rng = self.rng)
+        x1 = self.sample(x0 = x0)
+
+        real = None                     # Split off the trailing multiplicities
+        if self.max_multiplicity is not None:
+            x1, real = x1[:, :-1], np.arange(self.max_multiplicity) < x1[:, -1:]
+
+        reflowed = FlowBDT(self.tree_config, self.rng)
+        reflowed.fit(*build_trainds(x1, n_steps, x0, real = real))
+
+        return reflowed
 
 
 # --- Export/import ---
