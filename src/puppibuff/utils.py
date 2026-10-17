@@ -130,8 +130,9 @@ def multiplicities(mask: NDArray) -> NDArray:
 
 
 def flatten(source: Source, channels: list[str] | None = None) -> dict[str, NDArray]:
-    """One 1-D array per channel. Padded jets with a `real` channel drop their
-    padding and get a leading per-jet `multiplicity`.
+    """Construct one 1-D array per channel. Drop padding for jets with a `real` 
+    channel and add a leading per-jet `multiplicity`; their er-jet channels
+    pass through.
     """
     channels = channels or [ channel for channel in source if channel != "real" ]
 
@@ -141,4 +142,5 @@ def flatten(source: Source, channels: list[str] | None = None) -> dict[str, NDAr
     genuine = bool_mask(source["real"])
 
     return ({ "multiplicity": multiplicities(source["real"]) }
-            | { channel: source[channel][genuine] for channel in channels })
+            | { channel: source[channel][genuine] if source[channel].ndim == 2 else source[channel]
+                for channel in channels })

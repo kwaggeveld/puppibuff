@@ -70,7 +70,9 @@ def _series(target: Source, samples: dict[str, Source] | None,
         raise ValueError(f"Can plot at most { len(STYLES) - 1 } samples, "
                          f"got { len(samples) }.")
 
-    channels = channels or [ channel for channel in target if channel != "real" ]
+    padded   = "real" in target         # Per-jet channels only on request
+    channels = channels or [ channel for channel in target
+                             if channel != "real" and not (padded and target[channel].ndim == 1) ]
 
     return ([ "Target", *samples ],
             [ flatten(source, channels) for source in (target, *samples.values()) ])

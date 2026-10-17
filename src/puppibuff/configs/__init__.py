@@ -1,13 +1,14 @@
 from .config import Config
 from .flatpuppijet import FlatPuppiJetConfig
-from .clusteredl1puppi import ClusteredL1PuppiConfig, RelativeL1PuppiConfig
-from .toy import ToyJetConfig, ToyConstituentConfig
+from .l1puppi import L1PuppiConfig, ConditionedL1PuppiConfig
+from .toy import ToyJetConfig, ToyConstituentConfig, ConditionedToyConstituentConfig
 
 __all__ = [
     "Config",
     "FlatPuppiJetConfig",
-    "ClusteredL1PuppiConfig",
-    "RelativeL1PuppiConfig",
+    "L1PuppiConfig",
+    "ConditionedL1PuppiConfig",
     "ToyJetConfig",
     "ToyConstituentConfig",
+    "ConditionedToyConstituentConfig",
 ]

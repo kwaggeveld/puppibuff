@@ -18,6 +18,8 @@ class Codec(ABC):
 
     s_DECODED: list[str]                # The channels `decode` returns
 
+    max_multiplicity: int | None = None # Slots per jet of a constituent-level codec
+
     s_DECODE_TOP = "decode"             # `decode_cpp`'s HLS top function
                                         
     s_DECODE_PARAMS = "codec_params.hh"  # The Codec's fitted constants, 
@@ -45,14 +47,14 @@ class Codec(ABC):
     @abstractmethod
     def decode(self, out: NDArray) -> dict[str, NDArray]:
         """Reverse the transformations done by `encode`, return as one physical 
-        array per `s_DECODED. `out` is `(n_events, n_columns)` as `encode` 
-        returns, with a trailing multiplicity column if conditioned.
+        array per `s_DECODED`. `out` is `(n_events, n_columns)` as `encode` 
+        returns, with trailing condition columns if conditioned.
         """
         ...
 
-    def real_slots(self, data: Dataset) -> NDArray | None:
-        """Each event's real slots as `(n_events, M)` bools.
-        None for an unconditional model.
+    def conditions(self, data: Dataset) -> NDArray | None:
+        """Each event's conditions as `(n_events, n_conditions)`, multiplicity
+        first. None for an unconditional model.
         """
         return None
 

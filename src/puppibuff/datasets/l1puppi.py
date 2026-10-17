@@ -9,25 +9,20 @@ from numpy.typing import NDArray
 
 #-----------------------------------------------------------------------------
 
-class ClusteredL1Puppi(NpyDirDataset):
-    """Pre-clustered, zero-padded L1Puppi jet constituents (CL1P).
+class L1Puppi(NpyDirDataset):
+    """Pre-clustered, zero-padded L1Puppi jet constituents relative to their
+    jet: pt / jet_pt, eta - jet_eta and phi - jet_phi wrapped to [-pi, pi).
 
-    Clustering + padding are done by `scripts/cluster_l1puppi.py`: each .npy file 
-    holds dense (n_jets, m) arrays per channel (jets padded/truncated to a fixed 
+    Clustering + padding are done by `scripts/cluster_l1puppi.py`: each .npy file
+    holds dense (n_jets, m) arrays per channel (jets padded/truncated to a fixed
     m), plus a `real` mask (1 = genuine constituent, 0 = padding), and the
-    jets' own (n_jets,) kinematics over all its constituents.
-    """
-
-    s_CHANNELS = [ "pt", "eta", "phi", "real" ]
-    s_LOCATION_ENV = "CLUSTERED_L1PUPPI_LOCATION"
-
-
-class RelativeL1Puppi(ClusteredL1Puppi):
-    """ClusteredL1Puppi's constituents relative to their jet: pt / jet_pt,
-    eta - jet_eta and phi - jet_phi wrapped to [-pi, pi).
+    jets' own (n_jets,) kinematics over all its constituents, kept as (N,)
+    channels.
     """
 
     s_JET_KEYS = [ "jet_pt", "jet_eta", "jet_phi" ]
+    s_CHANNELS = [ "pt", "eta", "phi", "real" ] + s_JET_KEYS
+    s_LOCATION_ENV = "CLUSTERED_L1PUPPI_LOCATION"
 
     s_LOG_Y = { "eta", "phi" }          # Peaked at the axis, long tails
 
@@ -49,4 +44,5 @@ class RelativeL1Puppi(ClusteredL1Puppi):
         real = bool_mask(data["real"])
 
         return { channel: np.where(real, values, 0) for channel, values in relative.items() } \
-               | { "real": data["real"] }
+               | { "real": data["real"] } \
+               | { key: data[key] for key in self.s_JET_KEYS }

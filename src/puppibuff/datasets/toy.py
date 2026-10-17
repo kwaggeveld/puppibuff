@@ -32,9 +32,9 @@ class ToyJet(Dataset):
 
 
 class ToyConstituent(Dataset):
-    """Fake toy constituent-level samples."""
+    """Fake toy constituent-level samples, with their jet-level kinematics."""
 
-    s_CHANNELS = [ "pt", "eta", "phi", "real" ]
+    s_CHANNELS = [ "pt", "eta", "phi", "real", "jet_pt", "jet_eta", "jet_phi" ]
 
     s_SLOTS = 8                         # M, slots per jet
 
@@ -58,8 +58,14 @@ class ToyConstituent(Dataset):
         eta = axis_eta + rng.normal(0, .1, shape)
         phi = (axis_phi + rng.normal(0, .1, shape) + np.pi) % (2 * np.pi) - np.pi
 
-        return {
+        constituents = {
             channel: np.where(real, values, 0).astype(np.float32)
             for channel, values in
             { "pt": pt, "eta": eta, "phi": phi, "real": real }.items()
+        }
+
+        return constituents | {         # Per jet: summed pt, and the axis drawn around
+            "jet_pt":  constituents["pt"].sum(axis = 1),
+            "jet_eta": axis_eta[:, 0].astype(np.float32),
+            "jet_phi": axis_phi[:, 0].astype(np.float32),
         }

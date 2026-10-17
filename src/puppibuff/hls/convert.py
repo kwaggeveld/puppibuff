@@ -40,7 +40,7 @@ def convert_grid(
     """
     if flowbdt.max_multiplicity is not None:
         raise NotImplementedError(
-            "HLS supports does not support FlowBDT conditioned on multiplicity."
+            "HLS does not support conditional FlowBDTs."
         )
 
     config = hls_config(**(config_overrides or {}))
