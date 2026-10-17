@@ -37,16 +37,18 @@ STYLES: list[dict] = [                  # The target, then each sample
 TARGET = STYLES[0]
 
 LABELS = {                              # Channel key to label
-    "pt":           r"$p_\mathrm{T}$ / GeV",
-    "eta":          r"$\eta$",
-    "phi":          r"$\phi$ / rad",
-    "multiplicity": "Multiplicity",
+    "pt":               r"$p_\mathrm{T}$ / GeV",
+    "eta":              r"$\eta$",
+    "phi":              r"$\phi$ / rad",
+    "multiplicity":     "Multiplicity",
+    "pairwise_delta_r": r"$\Delta R$ between constituents",
+    "axis_delta_r":     r"$\Delta R$ to jet axis",
 }
                                         # Contours estimate these channels'
 LOG_LABELS = {                          # KDEs in log1p space
     "pt": r"$\log(1 + p_\mathrm{T} / \mathrm{GeV})$",
 }
-LOG_Y = { "pt", "multiplicity" }        # Marginals spanning orders of magnitude
+LOG_Y = { "pt", "multiplicity", "axis_delta_r" }  # Marginals spanning orders of magnitude
 
 PANEL_ASPECT   = 0.95                   # Axes height (main + ratio) / width
 XPAD           = 0.1                    # Fraction of the span left blank at each end

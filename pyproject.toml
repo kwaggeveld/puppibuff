@@ -24,14 +24,15 @@ dependencies = [
     "tqdm",
     "conifer >= 1.9",
     "pandas",                           # Undeclared by conifer, but imported by
-]                                       # its xgboost converter
+                                        # its xgboost converter
+    "vector",                           # Four-momenta for jet observables
+]
 
 [project.scripts]
 puppibuff = "puppibuff.cli:main"
 
 [project.optional-dependencies]
 scripts = [
-    "vector",
     "fastjet",
     "awkward",
 ]

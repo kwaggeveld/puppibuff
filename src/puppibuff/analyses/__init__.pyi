@@ -5,6 +5,8 @@ from .losses import (channel_mse as channel_mse, total_mse as total_mse,
                      joint_mse as joint_mse,
                      sliced_wasserstein as sliced_wasserstein,
                      classifier_two_sample_test as classifier_two_sample_test)
+from .observables import (pairwise_delta_r as pairwise_delta_r,
+                          axis_delta_r as axis_delta_r)
 from .plotting import (DOC_WIDTH as DOC_WIDTH,
                        flatten as flatten,
                        plot_histograms as plot_histograms,

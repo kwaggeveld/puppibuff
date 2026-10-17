@@ -1561,6 +1561,7 @@ dependencies = [
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "tqdm" },
+    { name = "vector" },
     { name = "xgboost", version = "3.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "xgboost", version = "3.4.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
 ]
@@ -1569,7 +1570,6 @@ dependencies = [
 scripts = [
     { name = "awkward" },
     { name = "fastjet" },
-    { name = "vector" },
 ]
 
 [package.dev-dependencies]
@@ -1592,7 +1592,7 @@ requires-dist = [
     { name = "scikit-learn" },
     { name = "scipy" },
     { name = "tqdm" },
-    { name = "vector", marker = "extra == 'scripts'" },
+    { name = "vector" },
     { name = "xgboost", specifier = ">=3.2" },
 ]
 provides-extras = ["scripts"]
