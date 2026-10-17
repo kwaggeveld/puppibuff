@@ -29,6 +29,8 @@ class RelativeL1Puppi(ClusteredL1Puppi):
 
     s_JET_KEYS = [ "jet_pt", "jet_eta", "jet_phi" ]
 
+    s_LOG_Y = { "eta", "phi" }          # Peaked at the axis, long tails
+
     def _select(self, data: dict) -> dict[str, NDArray]:
         """One file's constituents, relative to the file's jet kinematics."""
         if missing := set(self.s_JET_KEYS) - set(data):

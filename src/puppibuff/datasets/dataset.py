@@ -15,6 +15,8 @@ class Dataset(ABC):
 
     s_CHANNELS: list[str]               # The channels `_load` must return
 
+    s_LOG_Y: set[str] = set()           # Channels to plot on log-y beyond the defaults
+
     def __init__(self) -> None:
         self.d_data = self._load()
 

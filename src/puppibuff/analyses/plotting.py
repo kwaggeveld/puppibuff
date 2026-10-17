@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from ..datasets import Dataset
 from ..utils import Source, flatten
 
 from functools import partial
@@ -154,7 +155,7 @@ def _kde_panel(ax: Axes, rax: Axes | None, name: str, values: list[NDArray],
     if rax is not None:                 # KDE tails are long and ~~0, cut below 1e-3
         _ratio_panel(rax, grid, densities, step = False, floor = 1e-3)
 
-    if name in LOG_Y:                   # Manually set lower bound for log plots
+    if ax.get_yscale() == "log":        # Manually set lower bound for log plots
         peak = ax.dataLim.y1            # as well, otherwise log(~0) goes -infty
         ax.set_ylim(peak * 1e-8, peak * 2)
 
@@ -166,6 +167,7 @@ def _marginals(target: Source, samples: dict[str, Source] | None,
     """
     labels, series = _series(target, samples, channels)
     names   = list(series[0])
+    log_y   = LOG_Y | (target.s_LOG_Y if isinstance(target, Dataset) else set())
     heights = [ 3, 1 ] if len(series) > 1 else [ 3 ]
     n_cols  = 2 if len(names) == 4 else len(names)
     n_rows  = len(names) // n_cols
@@ -186,13 +188,14 @@ def _marginals(target: Source, samples: dict[str, Source] | None,
             rax.sharex(ax)
             ax.tick_params(axis = "x", which = "both", labelbottom = False)
 
+        if name in log_y:               # Before drawing so panels can read it
+            ax.set_yscale("log")
+
         panel(ax, rax, name, [ columns[name] for columns in series ], labels)
 
         low, high = ax.dataLim.intervalx
         ax.set_xlim(low - (high - low) * XPAD, high + (high - low) * XPAD)
 
-        if name in LOG_Y:
-            ax.set_yscale("log")
         if name == "multiplicity":      # Integer ticks
             ax.xaxis.set_major_locator(MaxNLocator(integer = True))
 
