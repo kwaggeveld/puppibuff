@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from .utils import initial_noise
+from .utils import initial_noise, no_conditions
 
 from numpy.typing import NDArray
 
@@ -17,16 +17,13 @@ class Paths:
         x0: NDArray, 
         x1: NDArray, 
         ts: NDArray,
-        conditions: NDArray | None = None,
-        max_multiplicity: int | None = None
+        conditions: NDArray,
     ) -> None:
         self.x0 = x0                    # (n_events, n_channels)
         self.x1 = x1                    # (n_events, n_channels)
         self.ts = ts                    # (n_steps)
         self.n_steps = len(ts)
-        self.conditions = conditions    # (n_events, n_conditions), fixed along the
-                                        # path, multiplicity first, of M slots
-        self.max_multiplicity = max_multiplicity
+        self.conditions = conditions    # (n_events, n_conditions), fixed along the path
 
     def __getitem__(self, step: int) -> NDArray:
         t = self.ts[step]
@@ -39,11 +36,9 @@ def build_trainds(
         rng: np.random.Generator | None = None,
         *,
         conditions: NDArray | None = None,
-        max_multiplicity: int | None = None,
     ) -> tuple[Paths, NDArray]:
     """Draw noise x0 if not provided and build Paths from `x0` to `x1` with
-    `n_steps` time steps, conditioned on per-event `conditions` over
-    `max_multiplicity` slots if given.
+    `n_steps` time steps, conditioned on per-event `conditions` if given.
     """
     if x0 is not None and x0.shape != x1.shape:
         raise ValueError(f"Expected x0 with shape { x1.shape }, got { x0.shape }")
@@ -52,4 +47,7 @@ def build_trainds(
 
     ts = np.linspace(0, 1, num = n_steps, dtype = np.float32)
 
-    return Paths(x0, x1, ts, conditions, max_multiplicity), x1 - x0
+    if conditions is None:
+        conditions = no_conditions(len(x1))
+
+    return Paths(x0, x1, ts, conditions), x1 - x0

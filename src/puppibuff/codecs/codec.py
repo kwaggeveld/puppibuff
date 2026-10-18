@@ -18,8 +18,6 @@ class Codec(ABC):
 
     s_DECODED: list[str]                # The channels `decode` returns
 
-    max_multiplicity: int | None = None # Slots per jet of a constituent-level codec
-
     s_DECODE_TOP = "decode"             # `decode_cpp`'s HLS top function
                                         
     s_DECODE_PARAMS = "codec_params.hh"  # The Codec's fitted constants, 
@@ -51,12 +49,6 @@ class Codec(ABC):
         returns, with trailing condition columns if conditioned.
         """
         ...
-
-    def conditions(self, data: Dataset) -> NDArray | None:
-        """Each event's conditions as `(n_events, n_conditions)`, multiplicity
-        first. None for an unconditional model.
-        """
-        return None
 
 # --- HLS export ---
 

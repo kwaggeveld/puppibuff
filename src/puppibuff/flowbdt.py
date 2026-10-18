@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from .build_trainds import build_trainds, Paths
 from .solvers import ab2_solve, Solver
-from .utils import initial_noise, t_to_step
+from .utils import initial_noise, no_conditions, t_to_step
 
 from functools import partial
 
@@ -28,11 +28,11 @@ class FlowBDT:
         self,
         tree_config: dict | None = None,
         rng: np.random.Generator | None = None, # Draws `sample`'s noise
+        max_multiplicity: int | None = None,    # Slots per jet of a constituent-level model
     ) -> None:
         self.tree_config = dict(tree_config or {}) # Need empty dict option for .load()
         self.rng = rng
-                                        # Set by `fit` if conditioned
-        self.max_multiplicity: int | None = None
+        self.max_multiplicity = max_multiplicity
                                         # Only if conditioned on multiplicity alone
         self.multiplicity_prior: NDArray | None = None
 
@@ -55,11 +55,8 @@ class FlowBDT:
         return bdt.predict(inputs)
 
 
-    def _inputs(self, xt: NDArray, conditions: NDArray | None) -> NDArray:
-        """`xt` with the `conditions` appended if given."""
-        if conditions is None:
-            return xt
-
+    def _inputs(self, xt: NDArray, conditions: NDArray) -> NDArray:
+        """`xt` with the `conditions` appended."""
         return np.column_stack([ xt, conditions ]).astype(np.float32)
 
 
@@ -70,35 +67,31 @@ class FlowBDT:
         sample_weights: NDArray | None = None, # (N,), one weight per event
     ) -> None:
         # x: n_steps points along the paths, each (N, n_channels); y: (N, n_channels)
-        self.n_steps    = x.n_steps
-        self.n_channels = y.shape[1]
+        self.n_steps      = x.n_steps
+        self.n_channels   = y.shape[1]
+        self.n_conditions = x.conditions.shape[1]
 
-        conditions = x.conditions
         mask: NDArray | None = None
-        if conditions is not None:      # Constituents: rebuild Paths
-            if x.max_multiplicity is None:
-                raise ValueError("Conditioned Paths need a max_multiplicity.")
-
-            self.max_multiplicity = x.max_multiplicity
-            multiplicities = conditions[:, 0].astype(int)
+                                        # Constituents: rebuild Paths
+        if self.max_multiplicity is not None:
+            multiplicities = x.conditions[:, 0].astype(int)
             
             mask = slot_mask(multiplicities, self.n_channels, self.max_multiplicity)
 
-            if conditions.shape[1] == 1:# Only multiplicity
+            if self.n_conditions == 1:  # Only multiplicity
                 counts = np.bincount(multiplicities, minlength = self.max_multiplicity + 1)
                 self.multiplicity_prior = counts / counts.sum()
                                         # Padding is paired with its own noise
-            x = Paths(x.x0, np.where(mask, x.x1, x.x0), x.ts)
+            x = Paths(x.x0, np.where(mask, x.x1, x.x0), x.ts, x.conditions)
 
-        self._train_grid(x, y, conditions, mask, sample_weights)
+        self._train_grid(x, y, mask, sample_weights)
 
 
     def _train_grid(
         self,
         x: Paths,
         y: NDArray,
-        conditions: NDArray | None,     # (N, n_conditions), if conditioned
-        mask: NDArray | None,           # (N, n_channels) real slots, if conditioned
+        mask: NDArray | None,           # (N, n_channels) real slots, if constituent-level
         sample_weights: NDArray | None,
     ) -> None:
         """Fit one BDT per (time step, channel) into `bdt_grid`."""
@@ -109,7 +102,7 @@ class FlowBDT:
         with tqdm(total = self.n_steps * self.n_channels,
                   desc  = "Training BDT grid") as progress_bar:
             for step in range(self.n_steps):
-                xt = self._inputs(x[step], conditions)
+                xt = self._inputs(x[step], x.conditions)
 
                 for channel in range(self.n_channels):
                                         # Only give samples where this slot is real
@@ -123,17 +116,20 @@ class FlowBDT:
 
     def predict(self, t: float, xt: NDArray, conditions: NDArray | None = None) -> NDArray:
         """Velocity at time `t` at `xt`, both (N, n_channels)."""
-        step = t_to_step(t, self.n_steps)
+        if conditions is None:
+            conditions = no_conditions(len(xt))
 
-                                        # Unconditioned
-        if self.max_multiplicity is None and conditions is None:
-            return np.column_stack([ bdt.predict(xt) for bdt in self.bdt_grid[step] ])
+        if conditions.shape[1] != self.n_conditions:
+            raise ValueError(f"Expected { self.n_conditions } conditions per "
+                             f"event, got { conditions.shape[1] }.")
 
-        if self.max_multiplicity is None or conditions is None:
-            raise ValueError("Pass conditions when and only when the FlowBDT was "
-                             "trained conditioned on them.")
+        step   = t_to_step(t, self.n_steps)
+        inputs = self._inputs(xt, conditions)
 
-        inputs   = self._inputs(xt, conditions)
+                                        # Jet-level: no padding
+        if self.max_multiplicity is None:
+            return np.column_stack([ bdt.predict(inputs) for bdt in self.bdt_grid[step] ])
+
         velocity = np.zeros_like(xt)    # Keep padding at zero velocity
         mask     = slot_mask(conditions[:, 0], self.n_channels, self.max_multiplicity)
 
@@ -146,12 +142,12 @@ class FlowBDT:
 
 
     def sample_multiplicities(self, n_samples: int,
-                              rng: np.random.Generator | None = None) -> NDArray | None:
+                              rng: np.random.Generator | None = None) -> NDArray:
         """Draw multiplicities from the training cut's histogram as `(n_samples, 1)`
-        conditions, `None` for a FlowBDT not conditioned on multiplicity alone.
+        conditions; none for a FlowBDT not conditioned on multiplicity alone.
         """
         if self.multiplicity_prior is None:
-            return None
+            return no_conditions(n_samples)
 
         rng = rng or self.rng or np.random.default_rng()
         prior = self.multiplicity_prior
@@ -168,9 +164,8 @@ class FlowBDT:
         conditions: NDArray | None = None,
     ) -> NDArray:
         """Starting from noise, provided or sampled here, integrate the learnt
-        vector field to generate a new sample. If conditioned, `conditions` are
-        drawn with `sample_multiplicities` unless given, and appended as trailing
-        columns.
+        vector field to generate a new sample. The `conditions`, drawn with
+        `sample_multiplicities` unless given, are appended as trailing columns.
         """
         shape = None if n_samples is None else (n_samples, self.n_channels)
         x0    = initial_noise(shape, x0, rng or self.rng)
@@ -181,9 +176,6 @@ class FlowBDT:
         conditioned_predict = partial(self.predict, conditions = conditions)
         raw = solver(conditioned_predict, x0, self.n_steps)
 
-        if conditions is None:
-            return raw
-
         return np.column_stack([ raw, conditions.astype(raw.dtype) ])
 
     def reflow(self, n_steps: int, n_pairs: int) -> FlowBDT:
@@ -193,16 +185,11 @@ class FlowBDT:
         (2-rectified flow, arXiv:2209.03003).
         """
         x0 = initial_noise((n_pairs, self.n_channels), rng = self.rng)
-        x1 = self.sample(x0 = x0)
+        x1 = self.sample(x0 = x0)       # With the conditions trailing
 
-        conditions = None               # Split off the trailing conditions
-        if self.max_multiplicity is not None:
-            conditions = x1[:, self.n_channels:]
-            x1 = x1[:, :self.n_channels]
-
-        reflowed = FlowBDT(self.tree_config, self.rng)
-        reflowed.fit(*build_trainds(x1, n_steps, x0, conditions = conditions,
-                                    max_multiplicity = self.max_multiplicity))
+        reflowed = FlowBDT(self.tree_config, self.rng, self.max_multiplicity)
+        reflowed.fit(*build_trainds(x1[:, :self.n_channels], n_steps, x0,
+                                    conditions = x1[:, self.n_channels:]))
 
         return reflowed
 

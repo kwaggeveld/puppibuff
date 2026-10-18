@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from ..datasets import Dataset
-from ..codecs import Codec
+from ..codecs import Codec, ConstituentCodec
 from ..build_trainds import build_trainds, Paths
 from ..flowbdt import FlowBDT
 from ..utils import class_path, import_class
@@ -65,11 +65,15 @@ class Config(ABC):
         train_rng, sample_rng = self.rngs()
 
         train_data = data[:self.n_events]
-        x, y = build_trainds(codec.encode(train_data), self.n_steps, x0, train_rng,
-                             conditions       = codec.conditions(train_data),
-                             max_multiplicity = codec.max_multiplicity)
+        x1 = codec.encode(train_data)
 
-        flowbdt = FlowBDT(self.tree_config, sample_rng)
+        if isinstance(codec, ConstituentCodec):
+            x, y = build_trainds(x1, self.n_steps, x0, train_rng,
+                                 conditions = codec.conditions(train_data))
+            flowbdt = FlowBDT(self.tree_config, sample_rng, codec.max_multiplicity)
+        else:
+            x, y = build_trainds(x1, self.n_steps, x0, train_rng)
+            flowbdt = FlowBDT(self.tree_config, sample_rng)
 
         return data, codec, flowbdt, x, y
 

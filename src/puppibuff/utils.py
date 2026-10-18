@@ -70,6 +70,11 @@ def initial_noise(
     return rng.standard_normal(shape, dtype = np.float32)
 
 
+def no_conditions(n_events: int) -> NDArray:
+    """Empty conditions of an unconditioned model."""
+    return np.empty((n_events, 0), dtype = np.float32)
+
+
 def class_path(cls: type) -> str:
     """`cls` as an importable `module:QualName` tag for a JSON export."""
     if cls.__module__ == "__main__":

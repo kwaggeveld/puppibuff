@@ -18,7 +18,7 @@ def main():
 
     data, codec, flowbdt, x, _ = config.setup()
 
-    flowbdt.fit(Paths(x.x0, x.x1, np.array([ 0 ])), x.x1)
+    flowbdt.fit(Paths(x.x0, x.x1, np.array([ 0 ]), x.conditions), x.x1)
 
     raw_samples = flowbdt.predict(0., initial_noise((1_000_000, flowbdt.n_channels)))
 

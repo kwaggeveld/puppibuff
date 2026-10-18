@@ -44,6 +44,9 @@ class ConstituentCodec(JetCodec):
 
 
     def conditions(self, data: Dataset) -> NDArray:
+        """Each event's conditions as `(n_events, n_conditions)`: the
+        multiplicity, then `s_CONDITIONS`.
+        """
         multiplicities = utils.multiplicities(data["real"])
         jet_level      = [ data[channel] for channel in self.s_CONDITIONS ]
 
