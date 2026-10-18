@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .npydirdataset import NpyDirDataset
-from ..utils import bool_mask
+from ..utils import bool_mask, multiplicities
 
 import numpy as np
 
@@ -17,11 +17,11 @@ class L1Puppi(NpyDirDataset):
     holds dense (n_jets, m) arrays per channel (jets padded/truncated to a fixed
     m), plus a `real` mask (1 = genuine constituent, 0 = padding), and the
     jets' own (n_jets,) kinematics over all its constituents, kept as (N,)
-    channels.
+    channels with each jet's multiplicity.
     """
 
     s_JET_KEYS = [ "jet_pt", "jet_eta", "jet_phi" ]
-    s_CHANNELS = [ "pt", "eta", "phi", "real" ] + s_JET_KEYS
+    s_CHANNELS = [ "pt", "eta", "phi", "real", "multiplicity" ] + s_JET_KEYS
     s_LOCATION_ENV = "CLUSTERED_L1PUPPI_LOCATION"
 
     s_LOG_Y = { "eta", "phi" }          # Peaked at the axis, long tails
@@ -44,5 +44,5 @@ class L1Puppi(NpyDirDataset):
         real = bool_mask(data["real"])
 
         return { channel: np.where(real, values, 0) for channel, values in relative.items() } \
-               | { "real": data["real"] } \
+               | { "real": data["real"], "multiplicity": multiplicities(data["real"]) } \
                | { key: data[key] for key in self.s_JET_KEYS }

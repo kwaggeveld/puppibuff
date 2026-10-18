@@ -134,10 +134,14 @@ def multiplicities(mask: NDArray) -> NDArray:
     return bool_mask(mask).sum(axis = 1)
 
 
+def real_slots(multiplicities: NDArray, max_multiplicity: int) -> NDArray:
+    """`(N, max_multiplicity)` mask of each jet's first `multiplicity` slots."""
+    return np.arange(max_multiplicity) < multiplicities[:, None]
+
+
 def flatten(source: Source, channels: list[str] | None = None) -> dict[str, NDArray]:
     """Construct one 1-D array per channel. Drop padding for jets with a `real` 
-    channel and add a leading per-jet `multiplicity`; their er-jet channels
-    pass through.
+    channel and add a leading per-jet `multiplicity`
     """
     channels = channels or [ channel for channel in source if channel != "real" ]
 

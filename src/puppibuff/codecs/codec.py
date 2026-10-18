@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from ..datasets import Dataset
-from ..utils import from_state, to_state
+from ..utils import Source, from_state, no_conditions, to_state
 
 from abc import ABC, abstractmethod
 import json
 from pathlib import Path
+import numpy as np
 
 from numpy.typing import NDArray
 
@@ -17,6 +18,7 @@ class Codec(ABC):
     """
 
     s_DECODED: list[str]                # The channels `decode` returns
+    s_CONDITIONS: list[str] = []        # The channels conditioned on, not encoded
 
     s_DECODE_TOP = "decode"             # `decode_cpp`'s HLS top function
                                         
@@ -41,6 +43,13 @@ class Codec(ABC):
         array. Sort the columns channel-major: channel's columns are consecutive.
         """
         ...
+
+    def conditions(self, data: Source) -> NDArray:
+        """Return `data`'s `s_CONDITIONS` as one `(n_events, n_conditions)` array."""
+        if not self.s_CONDITIONS:
+            return no_conditions(len(data))
+
+        return np.column_stack([ data[channel] for channel in self.s_CONDITIONS ]).astype(np.float32)
 
     @abstractmethod
     def decode(self, out: NDArray) -> dict[str, NDArray]:

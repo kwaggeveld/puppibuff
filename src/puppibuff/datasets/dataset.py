@@ -54,6 +54,9 @@ class Dataset(ABC):
     def __iter__(self) -> Iterator[str]:
         return iter(self.s_CHANNELS)
 
+    def __len__(self) -> int:
+        return len(self.d_data[self.s_CHANNELS[0]])
+
     def channels(self) -> list[str]:
         """The channel names stored in the Dataset.
         """

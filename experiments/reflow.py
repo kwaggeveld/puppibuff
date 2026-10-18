@@ -33,10 +33,10 @@ def main():
     reflowed = flowbdt.reflow(N_STEPS, N_PAIRS)
 
                                         # Same noise and conditions for both
-    noise      = initial_noise((N_SAMPLES, flowbdt.n_channels))
-    conditions = reflowed.sample_multiplicities(N_SAMPLES)
-    teacher = codec.decode(flowbdt.sample(x0 = noise, conditions = conditions))
-    samples = codec.decode(reflowed.sample(x0 = noise, conditions = conditions))
+    noise   = initial_noise((N_SAMPLES, flowbdt.n_channels))
+    raw     = flowbdt.sample(x0 = noise)
+    teacher = codec.decode(raw)
+    samples = codec.decode(reflowed.sample(x0 = noise, conditions = raw[:, flowbdt.n_channels:]))
 
     target = flatten(data)
     print(f"SW1 flow   = { sliced_wasserstein(target, flatten(teacher), CHANNELS) :.4g}   "

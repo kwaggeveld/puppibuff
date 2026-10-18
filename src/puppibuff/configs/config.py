@@ -65,15 +65,11 @@ class Config(ABC):
         train_rng, sample_rng = self.rngs()
 
         train_data = data[:self.n_events]
-        x1 = codec.encode(train_data)
+        x, y = build_trainds(codec.encode(train_data), self.n_steps, x0, train_rng,
+                             conditions = codec.conditions(train_data))
 
-        if isinstance(codec, ConstituentCodec):
-            x, y = build_trainds(x1, self.n_steps, x0, train_rng,
-                                 conditions = codec.conditions(train_data))
-            flowbdt = FlowBDT(self.tree_config, sample_rng, codec.max_multiplicity)
-        else:
-            x, y = build_trainds(x1, self.n_steps, x0, train_rng)
-            flowbdt = FlowBDT(self.tree_config, sample_rng)
+        max_multiplicity = codec.max_multiplicity if isinstance(codec, ConstituentCodec) else None
+        flowbdt = FlowBDT(self.tree_config, sample_rng, max_multiplicity)
 
         return data, codec, flowbdt, x, y
 

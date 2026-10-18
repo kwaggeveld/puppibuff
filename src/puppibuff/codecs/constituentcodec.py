@@ -15,11 +15,10 @@ class ConstituentCodec(JetCodec):
     samples.
     """
 
-    s_REQUIRED = JetCodec.s_REQUIRED + [ "real" ]
-    s_DECODED  = JetCodec.s_DECODED  + [ "real" ]
+    s_CONDITIONS = [ "multiplicity" ]   # Multiplicity first: it masks the slots
 
-    s_CONDITIONS: list[str] = []        # Jet-level channels conditioned on,
-                                        # besides the multiplicity
+    s_REQUIRED = JetCodec.s_REQUIRED + [ "real" ] + s_CONDITIONS
+    s_DECODED  = JetCodec.s_DECODED  + [ "real" ] + s_CONDITIONS
 
     max_multiplicity: int               # Slots per jet, M
 
@@ -43,35 +42,25 @@ class ConstituentCodec(JetCodec):
         return jets.reshape(len(jets), -1).astype(np.float32)
 
 
-    def conditions(self, data: Dataset) -> NDArray:
-        """Each event's conditions as `(n_events, n_conditions)`: the
-        multiplicity, then `s_CONDITIONS`.
-        """
-        multiplicities = utils.multiplicities(data["real"])
-        jet_level      = [ data[channel] for channel in self.s_CONDITIONS ]
-
-        return np.column_stack([ multiplicities, *jet_level ]).astype(np.float32)
-
-
     def decode(self, out: NDArray) -> dict[str, NDArray]:
                                         # (N, n_features * M + n_conditions),
                                         # conditions last -> (N, n_features, M)
         n_encoded  = self.n_features * self.max_multiplicity
         jets       = out[:, :n_encoded].reshape(len(out), self.n_features, self.max_multiplicity)
         conditions = out[:, n_encoded:]
-        real       = np.arange(self.max_multiplicity) < conditions[:, :1]
+        real       = utils.real_slots(conditions[:, 0], self.max_multiplicity)
 
         channels = self._decode_channels(*np.moveaxis(jets, 1, 0))
 
         return { channel: np.where(real, values, 0) for channel, values in channels.items() } \
                | { "real": real.astype(np.float32) } \
-               | dict(zip(self.s_CONDITIONS, conditions[:, 1:].T))
+               | dict(zip(self.s_CONDITIONS, conditions.T))
 
 
 class ConditionedConstituentCodec(ConstituentCodec):
     """ConstituentCodec whose conditions include the jet-level kinematics."""
 
-    s_CONDITIONS = [ "jet_pt", "jet_eta", "jet_phi" ]
+    s_CONDITIONS = ConstituentCodec.s_CONDITIONS + [ "jet_pt", "jet_eta", "jet_phi" ]
 
-    s_REQUIRED = ConstituentCodec.s_REQUIRED + s_CONDITIONS
-    s_DECODED  = ConstituentCodec.s_DECODED  + s_CONDITIONS
+    s_REQUIRED = JetCodec.s_REQUIRED + [ "real" ] + s_CONDITIONS
+    s_DECODED  = JetCodec.s_DECODED  + [ "real" ] + s_CONDITIONS

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .dataset import Dataset
+from ..utils import real_slots
 
 import numpy as np
 
@@ -34,7 +35,7 @@ class ToyJet(Dataset):
 class ToyConstituent(Dataset):
     """Fake toy constituent-level samples, with their jet-level kinematics."""
 
-    s_CHANNELS = [ "pt", "eta", "phi", "real", "jet_pt", "jet_eta", "jet_phi" ]
+    s_CHANNELS = [ "pt", "eta", "phi", "real", "multiplicity", "jet_pt", "jet_eta", "jet_phi" ]
 
     s_SLOTS = 8                         # M, slots per jet
 
@@ -48,7 +49,7 @@ class ToyConstituent(Dataset):
         shape = (self.size, self.s_SLOTS)
 
         multiplicities = np.clip(rng.poisson(4, self.size), 1, self.s_SLOTS)
-        real = np.arange(self.s_SLOTS) < multiplicities[:, None]
+        real = real_slots(multiplicities, self.s_SLOTS)
 
         axis_eta = rng.normal(0, 1.5, (self.size, 1))
         axis_phi = rng.uniform(-np.pi, np.pi, (self.size, 1))
@@ -64,7 +65,8 @@ class ToyConstituent(Dataset):
             { "pt": pt, "eta": eta, "phi": phi, "real": real }.items()
         }
 
-        return constituents | {         # Per jet: summed pt, and the axis drawn around
+        return constituents | {         # Per jet: multiplicity, summed pt, and the axis drawn around
+            "multiplicity": multiplicities.astype(np.float32),
             "jet_pt":  constituents["pt"].sum(axis = 1),
             "jet_eta": axis_eta[:, 0].astype(np.float32),
             "jet_phi": axis_phi[:, 0].astype(np.float32),

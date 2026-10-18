@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from .build_trainds import build_trainds, Paths
 from .solvers import ab2_solve, Solver
-from .utils import initial_noise, no_conditions, t_to_step
+from .utils import initial_noise, no_conditions, real_slots, t_to_step
 
 from functools import partial
 
@@ -15,22 +15,14 @@ from numpy.typing import NDArray
 
 #-----------------------------------------------------------------------------
 
-def slot_mask(multiplicities: NDArray, n_columns: int, max_multiplicity: int) -> NDArray:
-    """(N, n_columns) mask of real constituents."""
-                                        # Columns are channel-major,
-                                        # so first `multiplicity` of every 
-                                        # `max_multiplicity` slots are real
-    return np.arange(n_columns) % max_multiplicity < multiplicities[:, None]
-
-
 class FlowBDT:
     def __init__(
         self,
         tree_config: dict | None = None,
         rng: np.random.Generator | None = None, # Draws `sample`'s noise
-        max_multiplicity: int | None = None,    # Slots per jet of a constituent-level model
+        max_multiplicity: int | None = None,    # Slots per jet, if required for conditioning
     ) -> None:
-        self.tree_config = dict(tree_config or {}) # Need empty dict option for .load()
+        self.tree_config = dict(tree_config or {})
         self.rng = rng
         self.max_multiplicity = max_multiplicity
                                         # Only if conditioned on multiplicity alone
@@ -44,13 +36,13 @@ class FlowBDT:
         return XGBRegressor(**self.tree_config).fit(x, y, sample_weight = sample_weights)
 
 
-    def _predict_one(self, bdt: XGBModel | None, inputs: NDArray, slot: int) -> NDArray:
-        if len(inputs) == 0:            # No sampled jet populates this slot
+    def _predict_one(self, bdt: XGBModel | None, inputs: NDArray, channel: int) -> NDArray:
+        if len(inputs) == 0:            # No sample has this column real
             return np.empty(0)
 
         if bdt is None:
-            raise ValueError(f"No training jet had more than { slot } constituents, "
-                             f"so none can be sampled with more.")
+            raise ValueError(f"No training sample had column { channel } real, "
+                             f"so none can be sampled with it.")
 
         return bdt.predict(inputs)
 
@@ -58,6 +50,29 @@ class FlowBDT:
     def _inputs(self, xt: NDArray, conditions: NDArray) -> NDArray:
         """`xt` with the `conditions` appended."""
         return np.column_stack([ xt, conditions ]).astype(np.float32)
+
+
+    def _real_columns(self, conditions: NDArray) -> NDArray:
+        """Each event's real columns as `(N, n_channels)`."""
+        if self.max_multiplicity is None:
+            return np.ones((len(conditions), self.n_channels), dtype = bool)
+
+        slots = real_slots(conditions[:, 0], self.max_multiplicity)
+        return np.tile(slots, self.n_channels // self.max_multiplicity)
+
+
+    def _draw_conditions(self, n_samples: int, rng: np.random.Generator | None) -> NDArray:
+        """Multiplicities from the training cut's histogram as `(n_samples, 1)`
+        conditions if conditioned on the multiplicity alone, or none conditions 
+        if conditioned on jet-level kinematics too, as these have to be 
+        supplied externally.
+        """
+        if self.multiplicity_prior is None:
+            return no_conditions(n_samples)
+
+        rng = rng or self.rng or np.random.default_rng()
+        prior = self.multiplicity_prior
+        return rng.choice(len(prior), (n_samples, 1), p = prior)
 
 
     def fit(
@@ -71,27 +86,22 @@ class FlowBDT:
         self.n_channels   = y.shape[1]
         self.n_conditions = x.conditions.shape[1]
 
-        mask: NDArray | None = None
-                                        # Constituents: rebuild Paths
-        if self.max_multiplicity is not None:
-            multiplicities = x.conditions[:, 0].astype(int)
-            
-            mask = slot_mask(multiplicities, self.n_channels, self.max_multiplicity)
+        if self.n_conditions == 1:      # Only multiplicity
+            counts = np.bincount(x.conditions[:, 0].astype(int))
+            self.multiplicity_prior = counts / counts.sum()
 
-            if self.n_conditions == 1:  # Only multiplicity
-                counts = np.bincount(multiplicities, minlength = self.max_multiplicity + 1)
-                self.multiplicity_prior = counts / counts.sum()
+        real = self._real_columns(x.conditions)
                                         # Padding is paired with its own noise
-            x = Paths(x.x0, np.where(mask, x.x1, x.x0), x.ts, x.conditions)
+        x = Paths(x.x0, np.where(real, x.x1, x.x0), x.ts, x.conditions)
 
-        self._train_grid(x, y, mask, sample_weights)
+        self._train_grid(x, y, real, sample_weights)
 
 
     def _train_grid(
         self,
         x: Paths,
         y: NDArray,
-        mask: NDArray | None,           # (N, n_channels) real slots, if constituent-level
+        real: NDArray,                  # (N, n_channels)
         sample_weights: NDArray | None,
     ) -> None:
         """Fit one BDT per (time step, channel) into `bdt_grid`."""
@@ -106,8 +116,8 @@ class FlowBDT:
 
                 for channel in range(self.n_channels):
                                         # Only give samples where this slot is real
-                    real = slice(None) if mask is None else mask[:, channel]
-                    ensemble.append(self._fit_one(xt[real], y[real, channel], sample_weights[real]))
+                    rows = real[:, channel]
+                    ensemble.append(self._fit_one(xt[rows], y[rows, channel], sample_weights[rows]))
                     progress_bar.update()
 
         self.bdt_grid = (np.array(ensemble, dtype = object)
@@ -123,35 +133,16 @@ class FlowBDT:
             raise ValueError(f"Expected { self.n_conditions } conditions per "
                              f"event, got { conditions.shape[1] }.")
 
-        step   = t_to_step(t, self.n_steps)
-        inputs = self._inputs(xt, conditions)
-
-                                        # Jet-level: no padding
-        if self.max_multiplicity is None:
-            return np.column_stack([ bdt.predict(inputs) for bdt in self.bdt_grid[step] ])
-
+        step     = t_to_step(t, self.n_steps)
+        inputs   = self._inputs(xt, conditions)
+        real     = self._real_columns(conditions)
         velocity = np.zeros_like(xt)    # Keep padding at zero velocity
-        mask     = slot_mask(conditions[:, 0], self.n_channels, self.max_multiplicity)
 
         for channel, bdt in enumerate(self.bdt_grid[step]):
-            real = mask[:, channel]
-            velocity[real, channel] = self._predict_one(bdt, inputs[real],
-                                                        channel % self.max_multiplicity)
+            rows = real[:, channel]
+            velocity[rows, channel] = self._predict_one(bdt, inputs[rows], channel)
 
         return velocity
-
-
-    def sample_multiplicities(self, n_samples: int,
-                              rng: np.random.Generator | None = None) -> NDArray:
-        """Draw multiplicities from the training cut's histogram as `(n_samples, 1)`
-        conditions; none for a FlowBDT not conditioned on multiplicity alone.
-        """
-        if self.multiplicity_prior is None:
-            return no_conditions(n_samples)
-
-        rng = rng or self.rng or np.random.default_rng()
-        prior = self.multiplicity_prior
-        return rng.choice(len(prior), (n_samples, 1), p = prior)
 
 
     def sample(
@@ -164,14 +155,14 @@ class FlowBDT:
         conditions: NDArray | None = None,
     ) -> NDArray:
         """Starting from noise, provided or sampled here, integrate the learnt
-        vector field to generate a new sample. The `conditions`, drawn with
-        `sample_multiplicities` unless given, are appended as trailing columns.
+        vector field to generate a new sample. The `conditions`, drawn here
+        unless given, are appended as trailing columns.
         """
         shape = None if n_samples is None else (n_samples, self.n_channels)
         x0    = initial_noise(shape, x0, rng or self.rng)
 
         if conditions is None:
-            conditions = self.sample_multiplicities(len(x0), rng)
+            conditions = self._draw_conditions(len(x0), rng)
 
         conditioned_predict = partial(self.predict, conditions = conditions)
         raw = solver(conditioned_predict, x0, self.n_steps)
@@ -185,11 +176,13 @@ class FlowBDT:
         (2-rectified flow, arXiv:2209.03003).
         """
         x0 = initial_noise((n_pairs, self.n_channels), rng = self.rng)
-        x1 = self.sample(x0 = x0)       # With the conditions trailing
+        x1 = self.sample(x0 = x0)       # with trailing the conditions columns
 
         reflowed = FlowBDT(self.tree_config, self.rng, self.max_multiplicity)
-        reflowed.fit(*build_trainds(x1[:, :self.n_channels], n_steps, x0,
-                                    conditions = x1[:, self.n_channels:]))
+
+        rectified_paths = build_trainds(x1[:, :self.n_channels], n_steps, x0,
+                                        conditions = x1[:, self.n_channels:])
+        reflowed.fit(*rectified_paths)
 
         return reflowed
 
@@ -197,10 +190,10 @@ class FlowBDT:
 # --- Export/import ---
 
     def save(self, path: str) -> None:
-        """Persist the whole state except for `rng`, and export boosters to 
-        binary JSON.
+        """Persist the whole state except for `rng`, which is set by `load_model`,
+        and export boosters to binary JSON.
         """
-        state = { key: value for key, value in self.__dict__.items() if key != "rng" }
+        state = vars(self) | { "rng": None }
         state["bdt_grid"] = [ None if bdt is None else bdt.get_booster().save_raw("ubj")
                               for bdt in self.bdt_grid.ravel() ]
         joblib.dump(state, path)

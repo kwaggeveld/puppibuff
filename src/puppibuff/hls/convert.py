@@ -38,7 +38,7 @@ def convert_grid(
     directory per BDT. Return an array of conifer models with the same
     (n_steps, n_channels) shape.
     """
-    if flowbdt.max_multiplicity is not None:
+    if flowbdt.n_conditions:
         raise NotImplementedError(
             "HLS does not support conditional FlowBDTs."
         )
