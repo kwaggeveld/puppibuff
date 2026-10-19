@@ -42,14 +42,18 @@ LABELS = {                              # Channel key to label
     "eta":              r"$\eta$",
     "phi":              r"$\phi$ / rad",
     "multiplicity":     "Multiplicity",
+    "jet_pt":           r"$p_\mathrm{T}^\mathrm{jet}$ / GeV",
+    "jet_eta":          r"$\eta^\mathrm{jet}$",
+    "jet_phi":          r"$\phi^\mathrm{jet}$ / rad",
     "pairwise_delta_r": r"$\Delta R$ between constituents",
     "axis_delta_r":     r"$\Delta R$ to jet axis",
 }
                                         # Contours estimate these channels'
 LOG_LABELS = {                          # KDEs in log1p space
-    "pt": r"$\log(1 + p_\mathrm{T} / \mathrm{GeV})$",
+    "pt":     r"$\log(1 + p_\mathrm{T} / \mathrm{GeV})$",
+    "jet_pt": r"$\log(1 + p_\mathrm{T}^\mathrm{jet} / \mathrm{GeV})$",
 }
-LOG_Y = { "pt", "multiplicity", "axis_delta_r" }  # Marginals spanning orders of magnitude
+LOG_Y = { "pt", "jet_pt", "multiplicity", "axis_delta_r" }  # Marginals spanning orders of magnitude
 
 PANEL_ASPECT   = 0.95                   # Axes height (main + ratio) / width
 XPAD           = 0.1                    # Fraction of the span left blank at each end
@@ -70,9 +74,11 @@ def _series(target: Source, samples: dict[str, Source] | None,
         raise ValueError(f"Can plot at most { len(STYLES) - 1 } samples, "
                          f"got { len(samples) }.")
 
-    padded   = "real" in target         # Per-jet channels only on request
-    channels = channels or [ channel for channel in target
-                             if channel != "real" and not (padded and target[channel].ndim == 1) ]
+                                        # Channels to plot from first sample, else target
+    generated = next(iter(samples.values())) if samples else target  
+    padded    = "real" in generated     # Per-jet channels only on request
+    channels  = channels or [ channel for channel in generated
+                              if channel != "real" and not (padded and generated[channel].ndim == 1) ]
 
     return ([ "Target", *samples ],
             [ flatten(source, channels) for source in (target, *samples.values()) ])

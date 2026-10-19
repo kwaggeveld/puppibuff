@@ -50,9 +50,9 @@ class ConstituentCodec(JetCodec):
         conditions = out[:, n_encoded:]
         real       = utils.real_slots(conditions[:, 0], self.max_multiplicity)
 
-        channels = self._decode_channels(*np.moveaxis(jets, 1, 0))
+        channels = zip(self.s_KINEMATICS, self._decode_channels(*np.moveaxis(jets, 1, 0)))
 
-        return { channel: np.where(real, values, 0) for channel, values in channels.items() } \
+        return { channel: np.where(real, values, 0) for channel, values in channels } \
                | { "real": real.astype(np.float32) } \
                | dict(zip(self.s_CONDITIONS, conditions.T))
 

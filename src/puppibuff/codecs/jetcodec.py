@@ -18,8 +18,10 @@ class JetCodec(Codec):
     phi -> (sin_phi, cos_phi), or normalise if `s1phi = False`
     """
 
-    s_REQUIRED = [ "pt", "eta", "phi" ] # Expected by `fit` and `encode` 
-    s_DECODED  = [ "pt", "eta", "phi" ] # Returned by `decode`, for HLS
+    s_KINEMATICS = [ "pt", "eta", "phi" ]
+
+    s_REQUIRED = s_KINEMATICS           # Expected by `fit` and `encode` 
+    s_DECODED  = s_KINEMATICS           # Returned by `decode`, for HLS
 
     s_FRACTION_BITS = 12                # Decoded outputs' fractional precision
 
@@ -33,20 +35,23 @@ class JetCodec(Codec):
             raise ValueError(f"{ type(self).__name__ } expects flat (N,) channels, "
                              f"{ type(data).__name__ }'s { padded_channels } are not.")
 
-        self._fit_stats(data["pt"], data["eta"], data["phi"])
+        self._fit_stats(*( data[channel] for channel in self.s_KINEMATICS ))
 
-        self.n_features = len(self.s_REQUIRED) + self.s1phi   # phi -> (sin, cos) adds one
+        self.n_features = len(self.s_KINEMATICS) + self.s1phi # phi -> (sin, cos) adds one
 
     def encode(self, data: Dataset) -> NDArray:
         encoded_channels = self._encode_channels(
-            data["pt"], data["eta"], data["phi"]
+            *( data[channel] for channel in self.s_KINEMATICS )
         )
                                         # (N, n_features)
         return np.column_stack(encoded_channels)
 
 
     def decode(self, out: NDArray) -> dict[str, NDArray]:
-        return self._decode_channels(*out.T)
+        kinematics = self._decode_channels(*out[:, :self.n_features].T)
+        conditions = out[:, self.n_features:].T
+
+        return dict(zip(self.s_KINEMATICS, kinematics)) | dict(zip(self.s_CONDITIONS, conditions))
 
 
     @property
@@ -185,7 +190,7 @@ class JetCodec(Codec):
 
     def _decode_channels(                      # (sin, cos) or std_phi
         self, std_pt: NDArray, std_eta: NDArray, *phi_channels: NDArray
-    ) -> dict[str, NDArray]:
+    ) -> tuple[NDArray, NDArray, NDArray]:
         """Rescale e^pt - 1 and eta back to observed mean, std. Decode phi
         as arctan2(sin(phi), cos(phi)) if self.s1phi, else rescale back, then
         wrap to [-pi, pi).
@@ -199,8 +204,20 @@ class JetCodec(Codec):
         phi = (np.arctan2(*phi_channels) if self.s1phi          # -> (-pi, pi]
                 else phi_channels[0] * self.phi_std + self.phi_mean)
         
-        return {                        # Clip to observed range, 
-            "pt":  np.clip(pt,  self.pt_min,  self.pt_max),
-            "eta": np.clip(eta, self.eta_min, self.eta_max),
-            "phi": (phi + np.pi) % (2 * np.pi) - np.pi,
-        }                               # wrap phi to [-pi, pi)
+        return (                        # Clip to observed range, 
+            np.clip(pt,  self.pt_min,  self.pt_max),
+            np.clip(eta, self.eta_min, self.eta_max),
+            (phi + np.pi) % (2 * np.pi) - np.pi,
+        )                               # wrap phi to [-pi, pi)
+
+
+class ConditionedJetCodec(JetCodec):
+    """JetCodec for a constituent-level dataset's jet-level kinematics,
+    conditioned on the multiplicity.
+    """
+
+    s_KINEMATICS = [ "jet_pt", "jet_eta", "jet_phi" ]
+    s_CONDITIONS = [ "multiplicity" ]
+
+    s_REQUIRED = s_KINEMATICS + s_CONDITIONS
+    s_DECODED  = s_KINEMATICS + s_CONDITIONS
