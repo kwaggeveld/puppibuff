@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -38,6 +39,8 @@ def is_archive(path: str) -> bool:
 def save_model(path: str, config: Config, codec: Codec, flowbdt: FlowBDT) -> None:
     """Export a trained run as one archive with config, codec and FlowBDT."""
     Path(path).parent.mkdir(parents = True, exist_ok = True)
+                                        # Reflowed model's config doesn't get updated
+    config = replace(config, n_steps = flowbdt.n_steps) 
 
     with TemporaryDirectory() as tmp, ZipFile(path, "w", ZIP_DEFLATED) as archive:
         staged = Path(tmp)              # Write to a tempdir first
