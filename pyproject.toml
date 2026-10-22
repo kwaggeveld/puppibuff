@@ -51,7 +51,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "puppibuff" = ["*.mplstyle", "*.pyi"]   # `__init__.pyi` is read at runtime
-"puppibuff.hls" = ["firmware/*"]
+"puppibuff.hls" = ["firmware/**/*"]
 "puppibuff.codecs" = ["firmware/*"]
 
 [tool.mypy]

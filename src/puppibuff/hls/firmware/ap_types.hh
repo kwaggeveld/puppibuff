@@ -1,7 +1,7 @@
 #ifndef AP_TYPES_HH_
 #define AP_TYPES_HH_
 
-#include "ap_fixed.h"                   // Requires `XILINX_AP_INCLUDE` set
+#include "ap_fixed.h"                   // hls/firmware/ap_types in puppibuff
 
 #include <cstddef>                      // size_t
 

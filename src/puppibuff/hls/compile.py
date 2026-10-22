@@ -5,14 +5,18 @@ from .utils import bridge_path
 
 from os import environ, system
 from pathlib import Path
+from shlex import quote
 from joblib import Parallel, delayed
 from tqdm import tqdm
 from conifer.model import load_model
-from conifer.utils import _ap_include, _gcc_opts, _py_executable
+from conifer.utils import _gcc_opts, _py_executable
 
 from numpy.typing import NDArray
 
 #-----------------------------------------------------------------------------
+
+                                        # Vitis HLS's ap_fixed headers
+AP_INCLUDE = Path(__file__).parent / "firmware" / "ap_types"
 
 def compile_bdt(output_dir: str, name: str) -> None:
     """Compile one already-written BDT project into its pybind11 bridge.
@@ -26,6 +30,7 @@ def compile_bdt(output_dir: str, name: str) -> None:
 
     model._stamp = name                 # See `convert_bdt`                   # type: ignore
 
+    environ["XILINX_AP_INCLUDE"] = str(AP_INCLUDE)  # Read by conifer's `_ap_include`
     model.compile()
 
 
@@ -59,19 +64,17 @@ def compile_flowhls(output_dir: Path, files: list[str]) -> None:
             f"Run each build in its own process."
         )
 
-    ap_include = _ap_include()
-    if ap_include is None:
-        raise RuntimeError(
-            "Couldn't find Xilinx ap_ headers. Source the Vitis toolchain, "
-            "or set XILINX_AP_INCLUDE."
-        )
+    ap_include = quote(f"-I{ AP_INCLUDE }")
 
     CXX = environ.get("CXX", "g++")
 
-    command = (f"cd { output_dir } && "
+    sources = " ".join(quote(file) for file in [ "bridge.cpp", *files ])
+    bridge = quote(str(bridge_path(".", c.BRIDGE_MODULE)))
+
+    command = (f"cd { quote(str(output_dir)) } && "
                f"{CXX} -O3 -shared -std=c++14 -fPIC "       # Matching conifer
-               f"$({ _py_executable() } -m pybind11 --includes) { ap_include } { _gcc_opts() } "
-               f"bridge.cpp { ' '.join(files) } -o { bridge_path('.', c.BRIDGE_MODULE) }")
+               f"$({ quote(_py_executable()) } -m pybind11 --includes) { ap_include } { _gcc_opts() } "
+               f"{ sources } -o { bridge }")
 
     if system(command) != 0:
         raise RuntimeError(f"Failed to compile merged project in { output_dir }")
